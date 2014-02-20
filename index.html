@@ -1,0 +1,36 @@
+<!DOCTYPE html>
+<html>
+	<head>
+		<title>Connect SDK Test App</title>
+		<script src="//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js" language="JavaScript" type="text/javascript"></script>
+		<style>
+			body {
+				margin: 0;
+				padding: 0;
+				background-color: pink;
+			}
+		</style>
+	</head>
+	<body>
+		<video id="video" style="background-color:red;width:1280px;height;720px;display:none;"></video>
+		<audio id="audio" style="display:none;"></audio>
+		<img id="image" style="display:none;" />
+		<div id="textMessage" style="width:1280px;height:720px;background-color:blue;text-align:center;vertical-align:middle;line-height:720px;color:white;">Ready to receive messages</div>
+
+		<script src="connectsdk.js" language="JavaScript" type="text/javascript"></script>
+		<script language="JavaScript" type="text/javascript">
+			window.onload = function(evt) {
+				window.connectManager = new connectsdk.ConnectManager();
+				window.connectManager.registerVideoElement(document.getElementById('video'));
+				window.connectManager.registerAudioElement(document.getElementById('audio'));
+				window.connectManager.registerImageElement(document.getElementById('image'));
+				window.connectManager.init();
+
+				window.connectManager.on('message', function(message) {
+					var textElement = document.getElementById('textMessage');
+					textElement.innerText = message;
+				});
+			};
+		</script>
+	</body>
+</html>
