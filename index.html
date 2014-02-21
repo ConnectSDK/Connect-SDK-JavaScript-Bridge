@@ -4,18 +4,53 @@
 		<title>Connect SDK Test App</title>
 		<script src="//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js" language="JavaScript" type="text/javascript"></script>
 		<style>
+			html, body {
+			    margin: 0;
+			    padding: 0;
+			    border: 0;
+			}
+
 			body {
-				margin: 0;
-				padding: 0;
 				background-color: pink;
+			}
+
+			.media {
+				display: none;
+				position: absolute;
+				top: 0;
+				bottom: 0;
+				width: 100%;
+			}
+
+			#video {
+				background-color: red;
+			}
+
+			#textContainer {
+				position: absolute;
+				display: table;
+				width: 100%;
+				height: 100%;
+				background-color: blue;
+				text-align: center;
+			}
+
+			#textMessage {
+				display: table-cell;
+				vertical-align: middle;
+				color: white;
+				font-size: 40pt;
 			}
 		</style>
 	</head>
 	<body>
-		<video id="video" style="background-color:red;width:1280px;height;720px;display:none;"></video>
-		<audio id="audio" style="display:none;"></audio>
-		<img id="image" style="display:none;" />
-		<div id="textMessage" style="width:1280px;height:720px;background-color:blue;text-align:center;vertical-align:middle;line-height:720px;color:white;">Ready to receive messages</div>
+		<video id="video" class="media"></video>
+		<audio id="audio"></audio>
+		<img id="image" class="media" />
+
+		<div id="textContainer">
+			<div id="textMessage">App is loading...</div>
+		</div>
 
 		<script src="connectsdk.js" language="JavaScript" type="text/javascript"></script>
 		<script language="JavaScript" type="text/javascript">
