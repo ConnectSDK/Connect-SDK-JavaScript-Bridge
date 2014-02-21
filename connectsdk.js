@@ -186,7 +186,7 @@ connectsdk.ConnectManager = createClass({
 
         this.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
         
-        this.castMessageBus = this.castReceiverManager.getCastMessageBus("urn:x-cast:com.connectsdk.main");
+        this.castMessageBus = this.castReceiverManager.getCastMessageBus("urn:x-cast:com.connectsdk");
         this.castMessageBus.onMessage = function(evt) {
             var message;
 
@@ -201,9 +201,13 @@ connectsdk.ConnectManager = createClass({
             self.emit("message", message);
         };
 
-        this.castReceiverManager.start();
+        this.castReceiverManager.onReady = function(evt) {
+            self.emit('ready');
+        };
 
         this.sendMessage = this._sendMessageCast;
+        
+        this.castReceiverManager.start();
     },
 
     _initWebOSService: function() {
@@ -230,6 +234,15 @@ connectsdk.ConnectManager = createClass({
         });
 
         this.webOSAppChannels = new connectsdk.WebOSAppChannels();
+        
+        this.webOSAppChannels.on('message', function(message) {
+            self.emit('message', message);
+        });
+
+        this.webOSAppChannels.on('ready', function(evt) {
+            self.emit('ready');
+        });
+
         this.webOSAppChannels.start();
 
         this.sendMessage = this._sendMessageWebOS;
@@ -346,6 +359,7 @@ connectsdk.WebOSAppChannels = createClass({
     sendMessage: function(message) {
         var messageData = {
             type: "p2p",
+            to: 1, // DEBUG, workaround for crash
             payload: message
         };
 
@@ -377,6 +391,10 @@ connectsdk.WebOSAppChannels = createClass({
 
             self.ws = socket;
 
+            self.ws.onopen = function (event) {
+                self.emit('ready', event);
+            };
+
             self.ws.onmessage = function (event) {
                 var message = JSON.parse(event.data);
                 var payload = message.payload;
@@ -385,7 +403,7 @@ connectsdk.WebOSAppChannels = createClass({
 
                 if (message.type === "p2p") {
                     if (typeof message.payload !== 'undefined') {
-                        self.emit("message", {data: payload, namespace: message.ns});
+                        self.emit("message", payload);
                     }
                 } else if (message.type === "p2p.join-request") {
                     self._send({

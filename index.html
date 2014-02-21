@@ -59,12 +59,27 @@
 				window.connectManager.registerVideoElement(document.getElementById('video'));
 				window.connectManager.registerAudioElement(document.getElementById('audio'));
 				window.connectManager.registerImageElement(document.getElementById('image'));
-				window.connectManager.init();
+
+				var textElement = document.getElementById('textMessage');
+
+				window.connectManager.on('ready', function(evt) {
+					textElement.innerText = "Ready to receive messages";
+				});
 
 				window.connectManager.on('message', function(message) {
-					var textElement = document.getElementById('textMessage');
-					textElement.innerText = message;
+					var messageString;
+
+					if (typeof message == "string")
+						messageString = message;
+					else if (typeof message == "object")
+						messageString = JSON.stringify(message);
+
+					textElement.innerText = messageString;
+
+					window.connectManager.sendMessage("I got your message :-)");
 				});
+				
+				window.connectManager.init();
 			};
 		</script>
 	</body>
