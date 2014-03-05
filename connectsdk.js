@@ -175,19 +175,21 @@ connectsdk.ConnectManager = createClass({
 
         if (this.videoElement)
         {
-            this.castMediaManager = new cast.receiver.MediaManager(this.videoElement);
-            this.castMediaManager.onPlay = function(evt) { console.log("onPlay"); };
-            this.castMediaManager.onPause = function(evt) { console.log("onPause"); };
-            this.castMediaManager.onStop = function(evt) { console.log("onStop"); };
-            this.castMediaManager.onSeek = function(evt) { console.log("onSeek"); };
-            this.castMediaManager.onSetVolume = function(evt) { console.log("onSetVolume"); };
-            this.castMediaManager.onLoad = function(evt) { console.log("onLoad"); self.videoElement.style.display = ''; }
+            console.log('registering video element ' + this.videoElement);
+            window.mediaElement = this.videoElement;
+            window.castMediaManager = new cast.receiver.MediaManager(window.mediaElement);
+            // window.castMediaManager.onPlay = function(evt) { console.log("onPlay"); };
+            // window.castMediaManager.onPause = function(evt) { console.log("onPause"); };
+            // window.castMediaManager.onStop = function(evt) { console.log("onStop"); };
+            // window.castMediaManager.onSeek = function(evt) { console.log("onSeek"); };
+            // window.castMediaManager.onSetVolume = function(evt) { console.log("onSetVolume"); };
+            // window.castMediaManager.onLoad = function(evt) { console.log("onLoad"); }
         }
 
-        this.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
+        window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
         
-        this.castMessageBus = this.castReceiverManager.getCastMessageBus("urn:x-cast:com.connectsdk");
-        this.castMessageBus.onMessage = function(evt) {
+        window.castMessageBus = window.castReceiverManager.getCastMessageBus("urn:x-cast:com.connectsdk");
+        window.castMessageBus.onMessage = function(evt) {
             var message;
 
             try
@@ -201,13 +203,13 @@ connectsdk.ConnectManager = createClass({
             self.emit("message", message);
         };
 
-        this.castReceiverManager.onReady = function(evt) {
+        window.castReceiverManager.onReady = function(evt) {
             self.emit('ready');
         };
 
         this.sendMessage = this._sendMessageCast;
         
-        this.castReceiverManager.start();
+        window.castReceiverManager.start();
     },
 
     _initWebOSService: function() {
@@ -216,13 +218,15 @@ connectsdk.ConnectManager = createClass({
         window.addEventListener("keydown", function(evt) {
             switch (evt.keyCode)
             {
-                case 1537: // PLAY
+                case 415: // PLAY
                     console.log(self.platformType + " :: play command received");
+                    self.videoElement.play();
                     self.emit(connectsdk.ConnectManager.EventType.PLAY);
                     break;
 
                 case 19: // PAUSE
                     console.log(self.platformType + " :: pause command received");
+                    self.videoElement.pause();
                     self.emit(connectsdk.ConnectManager.EventType.PAUSE);
                     break;
 
@@ -234,6 +238,7 @@ connectsdk.ConnectManager = createClass({
         });
 
         this.webOSAppChannels = new connectsdk.WebOSAppChannels();
+        this.webOSAppChannels.connectManager = this;
         
         this.webOSAppChannels.on('message', function(message) {
             self.emit('message', message);
@@ -246,6 +251,22 @@ connectsdk.ConnectManager = createClass({
         this.webOSAppChannels.start();
 
         this.sendMessage = this._sendMessageWebOS;
+
+        var mediaType = getParameterByName('mediaType');
+        var mediaURL = getParameterByName('target');
+        var mimeType = getParameterByName('mimeType');
+        var title = getParameterByName('title');
+        var description = getParameterByName('description');
+        var iconSrc = getParameterByName('iconSrc');
+        var shouldLoop = getParameterByName('shouldLoop') == 'true';
+
+        if (mediaType == 'video')
+        {
+            console.log('test');
+            this.videoElement.src = mediaURL;
+            console.log(this.videoElement);
+            console.log(this.videoElement.src);
+        }
     },
 
     _sendMessageCast: function(message) {
@@ -273,6 +294,16 @@ connectsdk.ConnectManager = createClass({
         this.webOSAppChannels.sendMessage(messageJSON);
     }
 });
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Helpers
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // connectsdk.WebOSAppChannels
@@ -359,17 +390,19 @@ connectsdk.WebOSAppChannels = createClass({
     sendMessage: function(message) {
         var messageData = {
             type: "p2p",
-            to: 1, // DEBUG, workaround for crash
             payload: message
         };
 
-        this._send(messageData);
+        this._send(messageData, 'message');
     },
 
     _send: function (message) {
         if (this.ws) {
-            console.log("sending message: ", message);
-            this.ws.send(JSON.stringify(message));
+            if (message)
+            {
+                console.log("sending message: ", message);
+                this.ws.send(JSON.stringify(message));
+            }
         }
     },
 
@@ -402,8 +435,8 @@ connectsdk.WebOSAppChannels = createClass({
                 console.log("got message: " + JSON.stringify(message));
 
                 if (message.type === "p2p") {
-                    if (typeof message.payload !== 'undefined') {
-                        self.emit("message", payload);
+                    if (typeof payload !== 'undefined') {
+                        self._processP2PMessage(message);
                     }
                 } else if (message.type === "p2p.join-request") {
                     self._send({
@@ -434,5 +467,63 @@ connectsdk.WebOSAppChannels = createClass({
         }
 
         this._destroy();
+    },
+
+    _processP2PMessage: function(message) {
+        console.log('processing message payload ' + JSON.stringify(message.payload));
+        var contentType = message.payload.contentType;
+        var from = message.from;
+
+        if (contentType === 'mediaCommand')
+        {
+            console.log('processing mediaCommand ' + JSON.stringify(message.payload.mediaCommand) + ' of type ' + message.payload.mediaCommand.type);
+
+            var commandType = message.payload.mediaCommand.type;
+            var requestId = message.payload.mediaCommand.requestId;
+            var videoElement = this.connectManager.videoElement;
+
+            if (commandType === 'seek')
+            {
+                var position = message.payload.mediaCommand.position;
+
+                if (position)
+                    videoElement.currentTime = position;
+            }
+            else if (commandType === 'getPosition')
+            {
+                this._send({
+                            type: 'p2p',
+                            to: from,
+                            payload: {
+                                contentType: 'mediaCommandResponse',
+                                mediaCommandResponse: {
+                                    type: commandType,
+                                    position: videoElement.currentTime,
+                                    requestId:requestId
+                                }
+                            }
+                        });
+            } else if (commandType === 'getDuration')
+            {
+                this._send({
+                            type: 'p2p',
+                            to: from,
+                            payload: {
+                                contentType: 'mediaCommandResponse',
+                                mediaCommandResponse: {
+                                    type: commandType,
+                                    duration: videoElement.duration,
+                                    requestId:requestId
+                                }
+                            }
+                        });
+            } else if (commandType === 'getPlayState')
+            {
+
+            }
+        } else
+        {
+            this.emit('message', message.payload);
+        }
     }
 });
