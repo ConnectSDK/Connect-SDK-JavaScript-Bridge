@@ -1,0 +1,75 @@
+// set position from tv
+{
+	type: 'p2p',
+	sender: 1,
+	payload: {
+		contentType: 'mediaCommand',
+		mediaCommand: {
+			type: 'seek',
+			position: 10,
+			requestId: 0
+		}
+	}
+}
+
+// successful response to set position
+{
+	type: 'p2p',
+	to: 1,
+	payload: {
+		contentType: 'mediaCommandResponse',
+		mediaCommandResponse: {
+			result: 'success',
+			requestId: 0
+		}
+	}
+}
+
+// error response to set position
+{
+	type: 'p2p',
+	to: 1,
+	payload: {
+		contentType: 'mediaCommandResponse',
+		mediaCommandResponse: {
+			result: 'error',
+			error: 'some error message',
+			requestId: 0
+		}
+	}
+}
+
+// broadcast media event
+{
+	type: 'p2p',
+	payload: {
+		contentType: 'mediaEvent',
+		mediaEvent: {
+			type: 'playState',
+			playState: 'paused', // playing, idle, unknown, buffering, finished
+			position: 15
+		}
+	}
+}
+
+// JSON message to tv
+{
+	type: 'p2p',
+	sender: 1,
+	payload: {
+		contentType: 'message',
+		message: {
+			someArg: 'someVal'
+		}
+	}
+}
+
+// String message to tv
+{
+	type: 'p2p',
+	sender: 1,
+	payload: {
+		contentType: 'message',
+		message: 'some message'
+	}
+}
