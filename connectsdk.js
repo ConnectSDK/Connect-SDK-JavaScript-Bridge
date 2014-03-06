@@ -139,7 +139,30 @@ connectsdk.ConnectManager = createClass({
     },
 
     registerVideoElement: function(element) {
+        if (this.videoElement)
+        {
+            this.videoElement.removeEventListener('loadstart');
+            this.videoElement.removeEventListener('playing');
+            this.videoElement.removeEventListener('waiting');
+            this.videoElement.removeEventListener('ended');
+            this.videoElement.removeEventListener('play');
+            this.videoElement.removeEventListener('pause');
+        }
+
+        this.videoElementStatus = 'idle';
         this.videoElement = element;
+
+        if (this.videoElement)
+        {
+            var self = this;
+
+            this.videoElement.addEventListener('loadstart', function() { self.videoElementStatus = 'buffering'; self.emit('videoStatusUpdate'); });
+            this.videoElement.addEventListener('playing', function() { self.videoElementStatus = 'playing'; self.emit('videoStatusUpdate'); });
+            this.videoElement.addEventListener('waiting', function() { self.videoElementStatus = 'buffering'; self.emit('videoStatusUpdate'); });
+            this.videoElement.addEventListener('ended', function() { self.videoElementStatus = 'finished'; self.emit('videoStatusUpdate'); });
+            this.videoElement.addEventListener('play'), function() { self.videoElementStatus = 'playing'; self.emit('videoStatusUpdate'); };
+            this.videoElement.addEventListener('pause', function() { self.videoElementStatus = 'paused'; self.emit('videoStatusUpdate'); });
+        }
     },
 
     registerAudioElement: function(element) {
@@ -176,14 +199,7 @@ connectsdk.ConnectManager = createClass({
         if (this.videoElement)
         {
             console.log('registering video element ' + this.videoElement);
-            window.mediaElement = this.videoElement;
-            window.castMediaManager = new cast.receiver.MediaManager(window.mediaElement);
-            // window.castMediaManager.onPlay = function(evt) { console.log("onPlay"); };
-            // window.castMediaManager.onPause = function(evt) { console.log("onPause"); };
-            // window.castMediaManager.onStop = function(evt) { console.log("onStop"); };
-            // window.castMediaManager.onSeek = function(evt) { console.log("onSeek"); };
-            // window.castMediaManager.onSetVolume = function(evt) { console.log("onSetVolume"); };
-            // window.castMediaManager.onLoad = function(evt) { console.log("onLoad"); }
+            window.castMediaManager = new cast.receiver.MediaManager(this.videoElement);
         }
 
         window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
@@ -393,16 +409,13 @@ connectsdk.WebOSAppChannels = createClass({
             payload: message
         };
 
-        this._send(messageData, 'message');
+        this._send(messageData);
     },
 
     _send: function (message) {
-        if (this.ws) {
-            if (message)
-            {
-                console.log("sending message: ", message);
-                this.ws.send(JSON.stringify(message));
-            }
+        if (this.ws && message) {
+            console.log("sending message: ", message);
+            this.ws.send(JSON.stringify(message));
         }
     },
 
@@ -425,6 +438,7 @@ connectsdk.WebOSAppChannels = createClass({
             self.ws = socket;
 
             self.ws.onopen = function (event) {
+                self.connectManager.on('videoStatusUpdate', self._handleVideoStatusUpdate, self);
                 self.emit('ready', event);
             };
 
@@ -463,10 +477,38 @@ connectsdk.WebOSAppChannels = createClass({
         this.stopRequested = true;
 
         if (this.ws) {
+            this.connectManager.off('videoStatusUpdate');
             this.ws.close();
         }
 
         this._destroy();
+    },
+
+    _handleVideoStatusUpdate: function() {
+        var playState = this.connectManager.videoElementStatus;
+        var currentTime = 0;
+        var duration = 0;
+
+        if (this.connectManager.videoElement)
+        {
+            currentTime = this.connectManager.videoElement.currentTime;
+
+            if (this.connectManager.videoElement.duration != NaN)
+                duration = this.connectManager.videoElement.duration
+        }
+
+        if (playState == null)
+            return;
+
+        this.sendMessage({
+                    contentType: 'mediaEvent',
+                    mediaEvent: {
+                        type: 'playState',
+                        playState: playState,
+                        position: currentTime,
+                        duration: duration
+                    }
+                });
     },
 
     _processP2PMessage: function(message) {
@@ -487,7 +529,10 @@ connectsdk.WebOSAppChannels = createClass({
                 var position = message.payload.mediaCommand.position;
 
                 if (position)
+                {
                     videoElement.currentTime = position;
+                    this._handleVideoStatusUpdate();
+                }
             }
             else if (commandType === 'getPosition')
             {
