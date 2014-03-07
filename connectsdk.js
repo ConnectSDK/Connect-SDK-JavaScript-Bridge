@@ -294,7 +294,7 @@ connectsdk.ConnectManager = createClass({
             messageString = message;
         }
 
-        this.castMessageBus.broadcast(messageString);
+        window.castMessageBus.broadcast(messageString);
     },
 
     _sendMessageWebOS: function(message) {
