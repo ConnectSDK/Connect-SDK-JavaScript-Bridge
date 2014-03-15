@@ -1,8 +1,9 @@
 var connectsdk = {};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Event emitter functions
+// Mixins
 
+// Event emitter
 var SimpleEventEmitter = {
     addListener: function (event, callback, context) {
         if (!event) { throw new Error("missing parameter: event"); }
@@ -68,51 +69,6 @@ var SimpleEventEmitter = {
 };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// very simple class maker
-
-var createClass = function (desc) {
-    var constructor;
-    
-    if (desc.constructor) {
-        constructor = desc.constructor;
-        delete desc.constructor;
-    } else {
-        constructor = function () {};
-        throw new Error("no constructor");
-    }
-    
-    var prototype = constructor.prototype;
-
-    if (desc.mixins) {
-        desc.mixins.forEach(function (mixin) {
-            for (var mixinProp in mixin) {
-                if (mixin.hasOwnProperty(mixinProp)) {
-                    prototype[mixinProp] = mixin[mixinProp];
-                }
-            }
-        });
-        delete desc.mixins;
-    }
-    
-    if (desc.statics) {
-        for (var staticProp in desc.statics) {
-            if (desc.statics.hasOwnProperty(staticProp)) {
-                constructor[staticProp] = desc.statics[staticProp];
-            }
-        }
-        delete desc.statics;
-    }
-
-    for (var p in desc) {
-        if (desc.hasOwnProperty(p)) {
-            prototype[p] = desc[p];
-        }
-    }
-
-    return constructor;
-};
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // connectsdk.ConnectManager
 
 connectsdk.ConnectManager = createClass({
@@ -120,10 +76,10 @@ connectsdk.ConnectManager = createClass({
 
     statics: {
         PlatformType: {
-            DEFAULT: "default",
-            GOOGLE_CAST: "Google Cast",
-            WEBOS_NATIVE: "webOS Native",
-            WEBOS_WEB_APP: "webOS Web App"
+            DEFAULT: "Default",
+            GOOGLE_CAST: "GoogleCast",
+            WEBOS_NATIVE: "WebOSNative",
+            WEBOS_WEB_APP: "WebOSWebApp"
         },
 
         EventType: {
@@ -134,68 +90,185 @@ connectsdk.ConnectManager = createClass({
         }
     },
 
-    constructor: function() {
-        this._detectPlatform();
+    mediaEvents: {
+        loadStart: "buffering",
+        playing: "playing",
+        waiting: "buffering",
+        ended: "finished",
+        play: "playing",
+        pause: "paused"
     },
 
-    registerVideoElement: function(element) {
-        if (this.videoElement)
-        {
-            this.videoElement.removeEventListener('loadstart');
-            this.videoElement.removeEventListener('playing');
-            this.videoElement.removeEventListener('waiting');
-            this.videoElement.removeEventListener('ended');
-            this.videoElement.removeEventListener('play');
-            this.videoElement.removeEventListener('pause');
-        }
+    constructor: function () {
+        extend(this, connectsdk.platforms[this._detectPlatform()]);
+    },
 
-        this.videoElementStatus = 'idle';
-        this.videoElement = element;
+    registerMediaElement: function (element) {
+        // Unregister existing media element
+        this.mediaElement && this.unregisterMediaEvents(this.mediaElement);
 
-        if (this.videoElement)
-        {
-            var self = this;
-
-            this.videoElement.addEventListener('loadstart', function() { self.videoElementStatus = 'buffering'; self.emit('videoStatusUpdate'); });
-            this.videoElement.addEventListener('playing', function() { self.videoElementStatus = 'playing'; self.emit('videoStatusUpdate'); });
-            this.videoElement.addEventListener('waiting', function() { self.videoElementStatus = 'buffering'; self.emit('videoStatusUpdate'); });
-            this.videoElement.addEventListener('ended', function() { self.videoElementStatus = 'finished'; self.emit('videoStatusUpdate'); });
-            this.videoElement.addEventListener('play'), function() { self.videoElementStatus = 'playing'; self.emit('videoStatusUpdate'); };
-            this.videoElement.addEventListener('pause', function() { self.videoElementStatus = 'paused'; self.emit('videoStatusUpdate'); });
+        // Register new media element
+        if (element) {
+            this.registerMediaEvents(element);
+            this.mediaElement = element;
+            this.setMediaStatus("idle");
         }
     },
 
-    registerAudioElement: function(element) {
-        this.audioElement = element;
+    registerMediaEvents: function () {
+        if (element) {
+            for (var key in this.mediaEvents) {
+                this.mediaEvents.hasOwnProperty(key) && element.addEventListener(key, )
+            }
+        }
     },
 
-    registerImageElement: function(element) {
+    unregisterMediaEvents: function () {
+        if (element) {
+            for (var key in this.mediaEvents) {
+                this.mediaEvents.hasOwnProperty(key) && element.addEventListener(key,)
+            }
+        }
+    },
+
+    handleMediaEvent: function (evt) {
+        this.mediaEvents.hasOwnProperty(evt.type) && this.setMediaStatus(this.mediaEvents[evt.type]);
+    },
+
+    registerImageElement: function (element) {
         this.imageElement = element;
     },
 
-    init: function() {
+    setMediaStatus: function (status) {
+        this.mediaStatus = status;
+        this.emit("mediaStatusUpdate");
+    },
+
+    init: function () {
         if (this.platformType == connectsdk.ConnectManager.PlatformType.GOOGLE_CAST)
             this._initCastService();
         else if (this.platformType == connectsdk.ConnectManager.PlatformType.WEBOS_NATIVE || this.platformType == connectsdk.ConnectManager.PlatformType.WEBOS_WEB_APP)
             this._initWebOSService();
     },
 
-    _detectPlatform: function() {
-        if (navigator.userAgent.indexOf("CrKey") > 0 && cast != null)
+    _detectPlatform: function () {
+        // Default platform
+        this.platformType = this.PlatformType.DEFAULT;
+
+        if (navigator.userAgent.indexOf("CrKey") > 0 && cast != null) {
             this.platformType = connectsdk.ConnectManager.PlatformType.GOOGLE_CAST;
-        else if (window.PalmSystem)
-        {
-            if (window.PalmServiceBridge)
+        } else if (window.PalmSystem) {
+            if (window.PalmServiceBridge) {
                 this.platformType = connectsdk.ConnectManager.PlatformType.WEBOS_NATIVE;
-            else
+            } else {
                 this.platformType = connectsdk.ConnectManager.PlatformType.WEBOS_WEB_APP;
-        } else
-            this.platformType = connectsdk.ConnectManager.PlatformType.DEFAULT;
-    },
+            }
+        }
+        return this.platformType;
+    }
+});
 
-    _initCastService: function() {
-        var self = this;
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Platforms
 
+(typeof connectsdk.platforms != "object") && (connectsdk.platforms = {});
+
+// Default
+connectsdk.platforms.Default = {
+    init: nop,
+    sendMessage: nop
+};
+
+// webOS
+// In a closure to not pollute the global namespace.
+(function () {
+    var WebOSCommon = {
+        init: function () {
+            window.addEventListener("keydown", this.onKeyDown(this));
+
+            this.webOSAppChannels = new connectsdk.WebOSAppChannels();
+            this.webOSAppChannels.connectManager = this;
+
+            this.webOSAppChannels.on('message', this.onMessage.bind(this));
+
+            this.webOSAppChannels.on('ready', this.onReady.bind(this));
+
+            this.webOSAppChannels.start();
+
+            var mediaType = getParameterByName('mediaType');
+            var mediaURL = getParameterByName('target');
+            var mimeType = getParameterByName('mimeType');
+            var title = getParameterByName('title');
+            var description = getParameterByName('description');
+            var iconSrc = getParameterByName('iconSrc');
+            var shouldLoop = getParameterByName('shouldLoop') == 'true';
+
+            if (mediaType == 'video')
+            {
+                console.log('test');
+                this.videoElement.src = mediaURL;
+                console.log(this.videoElement);
+                console.log(this.videoElement.src);
+            }
+        },
+
+        onKeyDown: function (evt) {
+            switch (evt.keyCode)
+            {
+            case 415: // PLAY
+                console.log(this.name + " :: play command received");
+                this.videoElement.play();
+                this.emit(connectsdk.ConnectManager.EventType.PLAY);
+                break;
+
+            case 19: // PAUSE
+                console.log(this.name + " :: pause command received");
+                this.videoElement.pause();
+                this.emit(connectsdk.ConnectManager.EventType.PAUSE);
+                break;
+
+            case 413: // STOP
+                console.log(this.name + " :: stop command received");
+                this.emit(connectsdk.ConnectManager.EventType.STOP);
+                break;
+            }
+        },
+
+        onReady: function (evt) {
+            this.emit("ready");
+        },
+
+        onMessage: function (message) {
+            this.emit("message", message);
+        },
+
+        sendMessage: function (message) {
+            var messageJSON;
+
+            try {
+                JSON.parse(message);
+                messageJSON = message;
+            } catch (ex) {
+                messageJSON = { message: message };
+            }
+
+            this.webOSAppChannels.sendMessage(messageJSON);
+        }
+    };
+
+    connectsdk.platforms.WebOSNative = extend({
+        name: "webOS Native Web App"
+    }, WebOSCommon);
+
+    connectsdk.platforms.WebOSWebApp = extend({
+        name: "webOS Web App"
+    }, WebOSCommon);
+})();
+
+// Google Cast
+connectsdk.platforms.GoogleCast = {
+    name: "Google Cast",
+    init: function () {
         if (this.videoElement)
         {
             console.log('registering video element ' + this.videoElement);
@@ -203,89 +276,31 @@ connectsdk.ConnectManager = createClass({
         }
 
         window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
-        
+
         window.castMessageBus = window.castReceiverManager.getCastMessageBus("urn:x-cast:com.connectsdk");
-        window.castMessageBus.onMessage = function(evt) {
-            var message;
+        window.castMessageBus.addEventListener("message", this.onMessage.bind(this));
 
-            try
-            {
-                message = JSON.parse(evt.data);
-            } catch (ex)
-            {
-                message = evt.data;
-            }
+        window.castReceiverManager.addEventListener("ready", this.onReady.bind(this));
 
-            self.emit("message", message);
-        };
-
-        window.castReceiverManager.onReady = function(evt) {
-            self.emit('ready');
-        };
-
-        this.sendMessage = this._sendMessageCast;
-        
         window.castReceiverManager.start();
     },
 
-    _initWebOSService: function() {
-        var self = this;
-
-        window.addEventListener("keydown", function(evt) {
-            switch (evt.keyCode)
-            {
-                case 415: // PLAY
-                    console.log(self.platformType + " :: play command received");
-                    self.videoElement.play();
-                    self.emit(connectsdk.ConnectManager.EventType.PLAY);
-                    break;
-
-                case 19: // PAUSE
-                    console.log(self.platformType + " :: pause command received");
-                    self.videoElement.pause();
-                    self.emit(connectsdk.ConnectManager.EventType.PAUSE);
-                    break;
-
-                case 413: // STOP
-                    console.log(self.platformType + " :: stop command received");
-                    self.emit(connectsdk.ConnectManager.EventType.STOP);
-                    break;
-            }
-        });
-
-        this.webOSAppChannels = new connectsdk.WebOSAppChannels();
-        this.webOSAppChannels.connectManager = this;
-        
-        this.webOSAppChannels.on('message', function(message) {
-            self.emit('message', message);
-        });
-
-        this.webOSAppChannels.on('ready', function(evt) {
-            self.emit('ready');
-        });
-
-        this.webOSAppChannels.start();
-
-        this.sendMessage = this._sendMessageWebOS;
-
-        var mediaType = getParameterByName('mediaType');
-        var mediaURL = getParameterByName('target');
-        var mimeType = getParameterByName('mimeType');
-        var title = getParameterByName('title');
-        var description = getParameterByName('description');
-        var iconSrc = getParameterByName('iconSrc');
-        var shouldLoop = getParameterByName('shouldLoop') == 'true';
-
-        if (mediaType == 'video')
-        {
-            console.log('test');
-            this.videoElement.src = mediaURL;
-            console.log(this.videoElement);
-            console.log(this.videoElement.src);
-        }
+    onReady: function (evt) {
+        this.emit('ready');
     },
 
-    _sendMessageCast: function(message) {
+    onMessage: function (evt) {
+        var message;
+        try {
+            message = JSON.parse(evt.data);
+        } catch (ex) {
+            message = evt.data;
+        }
+
+        this.emit("message", message);
+    },
+
+    sendMessage: function (message) {
         var messageString;
 
         try {
@@ -295,31 +310,8 @@ connectsdk.ConnectManager = createClass({
         }
 
         window.castMessageBus.broadcast(messageString);
-    },
-
-    _sendMessageWebOS: function(message) {
-        var messageJSON;
-
-        try {
-            JSON.parse(message);
-            messageJSON = message;
-        } catch (ex) {
-            messageJSON = { message: message };
-        }
-
-        this.webOSAppChannels.sendMessage(messageJSON);
     }
-});
-
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-// Helpers
-
-function getParameterByName(name) {
-    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
-    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
-        results = regex.exec(location.search);
-    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
-}
+};
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // connectsdk.WebOSAppChannels
@@ -572,3 +564,54 @@ connectsdk.WebOSAppChannels = createClass({
         }
     }
 });
+
+////////////////////////////////////////////////////////////////////////////////////////////////////////////////
+// Helpers
+
+function getParameterByName(name) {
+    name = name.replace(/[\[]/, "\\[").replace(/[\]]/, "\\]");
+    var regex = new RegExp("[\\?&]" + name + "=([^&#]*)"),
+        results = regex.exec(location.search);
+    return results == null ? "" : decodeURIComponent(results[1].replace(/\+/g, " "));
+}
+
+// very simple class maker
+function createClass(desc) {
+    var constructor;
+
+    if (desc.constructor) {
+        constructor = desc.constructor;
+        delete desc.constructor;
+    } else {
+        constructor = function () {};
+        throw new Error("no constructor");
+    }
+
+    var prototype = constructor.prototype;
+
+    if (desc.mixins) {
+        desc.mixins.forEach(function (mixin) {
+            extend(prototype, mixin);
+        });
+        delete desc.mixins;
+    }
+
+    if (desc.statics) {
+        extend(constructor, desc.statics);
+        delete desc.statics;
+    }
+
+    extend(prototype, desc);
+    return constructor;
+}
+
+function extend(a, b) {
+    for (var key in b) {
+        if (b.hasOwnProperty(key)) {
+            a[key] = b[key]
+        }
+    }
+    return a;
+}
+
+function nop() {}
