@@ -1,7 +1,7 @@
 // set position from tv
 {
 	type: 'p2p',
-	sender: 1,
+	from: 1,
 	payload: {
 		contentType: 'mediaCommand',
 		mediaCommand: {
