@@ -115,18 +115,18 @@ connectsdk.ConnectManager = createClass({
         }
     },
 
-    registerMediaEvents: function () {
+    registerMediaEvents: function (element) {
         if (element) {
             for (var key in this.mediaEvents) {
-                this.mediaEvents.hasOwnProperty(key) && element.addEventListener(key, )
+                this.mediaEvents.hasOwnProperty(key) && element.addEventListener(key, this.handleMediaEvent, this);
             }
         }
     },
 
-    unregisterMediaEvents: function () {
+    unregisterMediaEvents: function (element) {
         if (element) {
             for (var key in this.mediaEvents) {
-                this.mediaEvents.hasOwnProperty(key) && element.addEventListener(key,)
+                this.mediaEvents.hasOwnProperty(key) && element.removeEventListener(key, this.handleMediaEvent, this);
             }
         }
     },
@@ -141,19 +141,11 @@ connectsdk.ConnectManager = createClass({
 
     setMediaStatus: function (status) {
         this.mediaStatus = status;
-        this.emit("mediaStatusUpdate");
-    },
-
-    init: function () {
-        if (this.platformType == connectsdk.ConnectManager.PlatformType.GOOGLE_CAST)
-            this._initCastService();
-        else if (this.platformType == connectsdk.ConnectManager.PlatformType.WEBOS_NATIVE || this.platformType == connectsdk.ConnectManager.PlatformType.WEBOS_WEB_APP)
-            this._initWebOSService();
+        this.emit("mediaStatusUpdate", mediaStatus);
     },
 
     _detectPlatform: function () {
-        // Default platform
-        this.platformType = this.PlatformType.DEFAULT;
+        this.platformType = connectsdk.ConnectManager.PlatformType.DEFAULT;
 
         if (navigator.userAgent.indexOf("CrKey") > 0 && cast != null) {
             this.platformType = connectsdk.ConnectManager.PlatformType.GOOGLE_CAST;
@@ -165,7 +157,11 @@ connectsdk.ConnectManager = createClass({
             }
         }
         return this.platformType;
-    }
+    },
+
+    init: nop,
+
+    sendMessage: nop
 });
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -203,12 +199,14 @@ connectsdk.platforms.Default = {
             var iconSrc = getParameterByName('iconSrc');
             var shouldLoop = getParameterByName('shouldLoop') == 'true';
 
-            if (mediaType == 'video')
+            if (mediaType == 'video' && this.mediaElement.tagName === "VIDEO")
             {
                 console.log('test');
-                this.videoElement.src = mediaURL;
-                console.log(this.videoElement);
-                console.log(this.videoElement.src);
+                this.mediaElement.src = mediaURL;
+                console.log(this.mediaElement);
+                console.log(this.mediaElement.src);
+            } else if (mediaType === "audio" && this.mediaElement.tagName === "AUDIO") {
+                this.mediaElement.src = mediaURL;
             }
         },
 
@@ -217,13 +215,13 @@ connectsdk.platforms.Default = {
             {
             case 415: // PLAY
                 console.log(this.name + " :: play command received");
-                this.videoElement.play();
+                this.mediaElement.play();
                 this.emit(connectsdk.ConnectManager.EventType.PLAY);
                 break;
 
             case 19: // PAUSE
                 console.log(this.name + " :: pause command received");
-                this.videoElement.pause();
+                this.mediaElement.pause();
                 this.emit(connectsdk.ConnectManager.EventType.PAUSE);
                 break;
 
@@ -269,6 +267,7 @@ connectsdk.platforms.Default = {
 connectsdk.platforms.GoogleCast = {
     name: "Google Cast",
     init: function () {
+        window.castReceiverManager = new cast.receiver.MediaManager(this.mediaElement);
         if (this.videoElement)
         {
             console.log('registering video element ' + this.videoElement);
@@ -319,11 +318,11 @@ connectsdk.platforms.GoogleCast = {
 connectsdk.WebOSAppChannels = createClass({
     mixins: [SimpleEventEmitter],
 
-    stopRequested: false,
-    ws: null,
-    channels: [],
-
     constructor: function() {
+        this.stopRequested = false;
+        this.ws = null;
+        this.channels = [];
+
         if (window.PalmServiceBridge) {
             var statusSubscription;
             var getChannelRequest;
@@ -418,11 +417,11 @@ connectsdk.WebOSAppChannels = createClass({
     },
 
     start: function () {
-        stopRequested = false;
+        this.stopRequested = false;
         var self = this;
 
         this.getAppChannelWebSocket(function (socket) {
-            if (stopRequested) {
+            if (self.stopRequested) {
                 self.stop();
                 return;
             }
@@ -430,7 +429,7 @@ connectsdk.WebOSAppChannels = createClass({
             self.ws = socket;
 
             self.ws.onopen = function (event) {
-                self.connectManager.on('videoStatusUpdate', self._handleVideoStatusUpdate, self);
+                self.connectManager.on('mediaStatusUpdate', self._handleMediaStatusUpdate, self);
                 self.emit('ready', event);
             };
 
@@ -469,24 +468,24 @@ connectsdk.WebOSAppChannels = createClass({
         this.stopRequested = true;
 
         if (this.ws) {
-            this.connectManager.off('videoStatusUpdate');
+            this.connectManager.off('mediaStatusUpdate');
             this.ws.close();
         }
 
         this._destroy();
     },
 
-    _handleVideoStatusUpdate: function() {
-        var playState = this.connectManager.videoElementStatus;
+    _handleMediaStatusUpdate: function() {
+        var playState = this.connectManager.mediaStatus;
         var currentTime = 0;
         var duration = 0;
 
-        if (this.connectManager.videoElement)
+        if (this.connectManager.mediaElement)
         {
-            currentTime = this.connectManager.videoElement.currentTime;
+            currentTime = this.connectManager.mediaElement.currentTime;
 
-            if (this.connectManager.videoElement.duration != NaN)
-                duration = this.connectManager.videoElement.duration
+            if (this.connectManager.mediaElement.duration != NaN)
+                duration = this.connectManager.mediaElement.duration;
         }
 
         if (playState == null)
@@ -514,7 +513,7 @@ connectsdk.WebOSAppChannels = createClass({
 
             var commandType = message.payload.mediaCommand.type;
             var requestId = message.payload.mediaCommand.requestId;
-            var videoElement = this.connectManager.videoElement;
+            var mediaElement = this.connectManager.mediaElement;
 
             if (commandType === 'seek')
             {
@@ -522,8 +521,8 @@ connectsdk.WebOSAppChannels = createClass({
 
                 if (position)
                 {
-                    videoElement.currentTime = position;
-                    this._handleVideoStatusUpdate();
+                    mediaElement.currentTime = position;
+                    this._handleMediaStatusUpdate();
                 }
             }
             else if (commandType === 'getPosition')
@@ -535,7 +534,7 @@ connectsdk.WebOSAppChannels = createClass({
                                 contentType: 'mediaCommandResponse',
                                 mediaCommandResponse: {
                                     type: commandType,
-                                    position: videoElement.currentTime,
+                                    position: mediaElement.currentTime,
                                     requestId:requestId
                                 }
                             }
@@ -549,7 +548,7 @@ connectsdk.WebOSAppChannels = createClass({
                                 contentType: 'mediaCommandResponse',
                                 mediaCommandResponse: {
                                     type: commandType,
-                                    duration: videoElement.duration,
+                                    duration: mediaElement.duration,
                                     requestId:requestId
                                 }
                             }
