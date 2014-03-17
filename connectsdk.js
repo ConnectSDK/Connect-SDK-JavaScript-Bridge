@@ -144,13 +144,14 @@ connectsdk.ConnectManager = createClass({
         this.emit("mediaStatusUpdate", mediaStatus);
     },
 
-    _detectPlatform: function () {
-        this.platformType = connectsdk.ConnectManager.PlatformType.DEFAULT;
+    _detectPlatform: function() {
+        var userAgent = navigator.userAgent.toLowerCase();
 
-        if (navigator.userAgent.indexOf("CrKey") > 0 && cast != null) {
+        if (userAgent.indexOf('crkey') > 0 && cast != null)
             this.platformType = connectsdk.ConnectManager.PlatformType.GOOGLE_CAST;
-        } else if (window.PalmSystem) {
-            if (window.PalmServiceBridge) {
+        else if (userAgent.indexOf('lge') >= 0 && userAgent.indexOf('webos') >= 0)
+        {
+            if (window.PalmServiceBridge)
                 this.platformType = connectsdk.ConnectManager.PlatformType.WEBOS_NATIVE;
             } else {
                 this.platformType = connectsdk.ConnectManager.PlatformType.WEBOS_WEB_APP;
