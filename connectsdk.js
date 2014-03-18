@@ -91,7 +91,7 @@ connectsdk.ConnectManager = createClass({
     },
 
     mediaEvents: {
-        loadStart: "buffering",
+        loadstart: "buffering",
         playing: "playing",
         waiting: "buffering",
         ended: "finished",
@@ -103,7 +103,7 @@ connectsdk.ConnectManager = createClass({
         extend(this, connectsdk.platforms[this._detectPlatform()]);
     },
 
-    registerMediaElement: function (element) {
+    setMediaElement: function (element) {
         // Unregister existing media element
         this.mediaElement && this.unregisterMediaEvents(this.mediaElement);
 
@@ -111,6 +111,7 @@ connectsdk.ConnectManager = createClass({
         if (element) {
             this.registerMediaEvents(element);
             this.mediaElement = element;
+            this.emit("mediaElementUpdate", element);
             this.setMediaStatus("idle");
         }
     },
@@ -141,11 +142,12 @@ connectsdk.ConnectManager = createClass({
 
     setMediaStatus: function (status) {
         this.mediaStatus = status;
-        this.emit("mediaStatusUpdate", mediaStatus);
+        this.emit("mediaStatusUpdate", status);
     },
 
     _detectPlatform: function() {
         var userAgent = navigator.userAgent.toLowerCase();
+        this.platformType = connectsdk.ConnectManager.PlatformType.DEFAULT;
 
         if (userAgent.indexOf('crkey') > 0 && cast != null)
             this.platformType = connectsdk.ConnectManager.PlatformType.GOOGLE_CAST;
@@ -153,9 +155,8 @@ connectsdk.ConnectManager = createClass({
         {
             if (window.PalmServiceBridge)
                 this.platformType = connectsdk.ConnectManager.PlatformType.WEBOS_NATIVE;
-            } else {
+            else
                 this.platformType = connectsdk.ConnectManager.PlatformType.WEBOS_WEB_APP;
-            }
         }
         return this.platformType;
     },
@@ -192,26 +193,37 @@ connectsdk.platforms.Default = {
 
             this.webOSAppChannels.start();
 
-            var mediaType = getParameterByName('mediaType');
-            var mediaURL = getParameterByName('target');
-            var mimeType = getParameterByName('mimeType');
-            var title = getParameterByName('title');
-            var description = getParameterByName('description');
-            var iconSrc = getParameterByName('iconSrc');
-            var shouldLoop = getParameterByName('shouldLoop') == 'true';
+            // Attempt to retrieve the media element from the URI
+            this.loadMediaFromURI();
+        },
 
-            if (mediaType == 'video' && this.mediaElement.tagName === "VIDEO")
-            {
-                console.log('test');
-                this.mediaElement.src = mediaURL;
-                console.log(this.mediaElement);
-                console.log(this.mediaElement.src);
-            } else if (mediaType === "audio" && this.mediaElement.tagName === "AUDIO") {
-                this.mediaElement.src = mediaURL;
+        loadMediaFromURI: function () {
+            var media = {
+                type: getParameterByName('mediaType'),
+                url: getParameterByName('target'),
+                mimeType: getParameterByName('mimeType'),
+                title: getParameterByName('title'),
+                description: getParameterByName('description'),
+                iconSrc: getParameterByName('iconSrc'),
+                loop: getParameterByName('shouldLoop') === 'true'
+            };
+
+            if (media.url && media.type) {
+                console.log("Attempting to load", media.type);
+                if (this.mediaElement && this.mediaElement.tagName.toLowerCase() === media.type) {
+                    console.log("Loading", media.url);
+                    this.mediaElement.src = media.url;
+                } else {
+                    console.log("Failed to load: Media type mismatch.")
+                }
             }
         },
 
         onKeyDown: function (evt) {
+            if (!this.mediaElement) {
+                return;
+            }
+
             switch (evt.keyCode)
             {
             case 415: // PLAY
@@ -268,12 +280,8 @@ connectsdk.platforms.Default = {
 connectsdk.platforms.GoogleCast = {
     name: "Google Cast",
     init: function () {
-        window.castReceiverManager = new cast.receiver.MediaManager(this.mediaElement);
-        if (this.videoElement)
-        {
-            console.log('registering video element ' + this.videoElement);
-            window.castMediaManager = new cast.receiver.MediaManager(this.videoElement);
-        }
+        this.mediaElement && (window.castMediaManager = new cast.receiver.MediaManager(this.mediaElement));
+        this.on("mediaElementUpdate", this.onMediaElementUpdate, this);
 
         window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
 
@@ -283,6 +291,17 @@ connectsdk.platforms.GoogleCast = {
         window.castReceiverManager.addEventListener("ready", this.onReady.bind(this));
 
         window.castReceiverManager.start();
+    },
+
+    onMediaElementUpdate: function (element) {
+        if (!element) {
+            return;
+        }
+        if (!window.castMediaManager) {
+            window.castMediaManager = new cast.receiver.MediaManager(element);
+        } else {
+            window.castMediaManager.setMediaElement(element);
+        }
     },
 
     onReady: function (evt) {
@@ -480,27 +499,28 @@ connectsdk.WebOSAppChannels = createClass({
         var playState = this.connectManager.mediaStatus;
         var currentTime = 0;
         var duration = 0;
+        var mediaElement = this.connectManager.mediaElement;
 
-        if (this.connectManager.mediaElement)
+        if (mediaElement)
         {
-            currentTime = this.connectManager.mediaElement.currentTime;
+            currentTime = mediaElement.currentTime;
 
-            if (this.connectManager.mediaElement.duration != NaN)
-                duration = this.connectManager.mediaElement.duration;
+            if (mediaElement.duration != NaN)
+                duration = mediaElement.duration;
         }
 
         if (playState == null)
             return;
 
         this.sendMessage({
-                    contentType: 'mediaEvent',
-                    mediaEvent: {
-                        type: 'playState',
-                        playState: playState,
-                        position: currentTime,
-                        duration: duration
-                    }
-                });
+            contentType: 'mediaEvent',
+            mediaEvent: {
+                type: 'playState',
+                playState: playState,
+                position: currentTime,
+                duration: duration
+            }
+        });
     },
 
     _processP2PMessage: function(message) {
@@ -529,31 +549,31 @@ connectsdk.WebOSAppChannels = createClass({
             else if (commandType === 'getPosition')
             {
                 this._send({
-                            type: 'p2p',
-                            to: from,
-                            payload: {
-                                contentType: 'mediaCommandResponse',
-                                mediaCommandResponse: {
-                                    type: commandType,
-                                    position: mediaElement.currentTime,
-                                    requestId:requestId
-                                }
-                            }
-                        });
+                    type: 'p2p',
+                    to: from,
+                    payload: {
+                        contentType: 'mediaCommandResponse',
+                        mediaCommandResponse: {
+                            type: commandType,
+                            position: mediaElement.currentTime,
+                            requestId:requestId
+                        }
+                    }
+                });
             } else if (commandType === 'getDuration')
             {
                 this._send({
-                            type: 'p2p',
-                            to: from,
-                            payload: {
-                                contentType: 'mediaCommandResponse',
-                                mediaCommandResponse: {
-                                    type: commandType,
-                                    duration: mediaElement.duration,
-                                    requestId:requestId
-                                }
-                            }
-                        });
+                    type: 'p2p',
+                    to: from,
+                    payload: {
+                        contentType: 'mediaCommandResponse',
+                        mediaCommandResponse: {
+                            type: commandType,
+                            duration: mediaElement.duration,
+                            requestId:requestId
+                        }
+                    }
+                });
             } else if (commandType === 'getPlayState')
             {
 
