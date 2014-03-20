@@ -182,7 +182,7 @@ connectsdk.platforms.Default = {
 (function () {
     var WebOSCommon = {
         init: function () {
-            window.addEventListener("keydown", this.onKeyDown(this));
+            window.addEventListener("keydown", this.onKeyDown.bind(this));
 
             this.webOSAppChannels = new connectsdk.WebOSAppChannels();
             this.webOSAppChannels.connectManager = this;
@@ -194,6 +194,7 @@ connectsdk.platforms.Default = {
             this.webOSAppChannels.start();
 
             // Attempt to retrieve the media element from the URI
+            // TODO: change this to use launch params over app2app
             this.loadMediaFromURI();
         },
 

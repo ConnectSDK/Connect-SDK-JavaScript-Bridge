@@ -163,7 +163,7 @@
 				videoElement.autoplay = true;
 
 				window.connectManager = new connectsdk.ConnectManager();
-				window.connectManager.registerVideoElement(videoElement);
+				window.connectManager.setMediaElement(videoElement);
 
 				var textContainer = document.getElementById('textContainer');
 				var textElement = document.getElementById('textMessage');
