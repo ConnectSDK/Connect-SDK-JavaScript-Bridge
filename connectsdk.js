@@ -480,6 +480,7 @@ connectsdk.WebOSAppChannels = createClass({
             };
 
             self.ws.onclose = function () {
+                self.connectManager.off('mediaStatusUpdate', self._handleMediaStatusUpdate, self);
                 self.ws = null;
             };
         });
@@ -489,7 +490,6 @@ connectsdk.WebOSAppChannels = createClass({
         this.stopRequested = true;
 
         if (this.ws) {
-            this.connectManager.off('mediaStatusUpdate');
             this.ws.close();
         }
 
