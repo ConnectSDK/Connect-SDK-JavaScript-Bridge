@@ -119,7 +119,7 @@ connectsdk.ConnectManager = createClass({
     registerMediaEvents: function (element) {
         if (element) {
             for (var key in this.mediaEvents) {
-                this.mediaEvents.hasOwnProperty(key) && element.addEventListener(key, this.handleMediaEvent, this);
+                this.mediaEvents.hasOwnProperty(key) && element.addEventListener(key, this.handleMediaEvent.bind(this));
             }
         }
     },
