@@ -159,11 +159,22 @@
 			}
 
 			window.onload = function(evt) {
-				var videoElement = document.getElementById('video');
-				videoElement.autoplay = true;
+				var mimeType = getParameterByName('mimeType');
+				var mediaElement;
+
+				if (mimeType)
+				{
+					var mediaType = mimeType.split('/')[0];
+
+					if (mediaType)
+						mediaElement = document.getElementById(mediaType);
+				} else
+				{
+					mediaElement = document.getElementById('video');
+				}
 
 				window.connectManager = new connectsdk.ConnectManager();
-				window.connectManager.setMediaElement(videoElement);
+				window.connectManager.setMediaElement(mediaElement);
 
 				var textContainer = document.getElementById('textContainer');
 				var textElement = document.getElementById('textMessage');
@@ -187,13 +198,13 @@
 				});
 
 				var cleanupVideo = function() {
-					if (videoElement.playbackRate != 0)
-						videoElement.pause();
+					if (mediaElement.playbackRate != 0)
+						mediaElement.pause();
 
 					document.getElementById('currentTime').innerText = 
 						document.getElementById('totalTime').innerText = "00:00";
 
-					videoElement.style.display = 'none';
+					mediaElement.style.display = 'none';
 
 					document.getElementById('playBar').style.display = 'none';
 					document.getElementById('playControls').style.display = 'none';
@@ -217,39 +228,39 @@
 					document.getElementById('splash').style.display = 'none';
 				});
 
-				videoElement.addEventListener('loadstart', function() {
+				mediaElement.addEventListener('loadstart', function() {
 					cleanupMedia();
 
-					videoElement.style.display = 'table';
-					videoElement.play();
+					mediaElement.style.display = 'table';
+					mediaElement.play();
 
 					document.getElementById('playBar').style.display = 'block';
 					document.getElementById('playControls').style.display = 'table';
 					document.getElementById('splash').style.display = 'none';
 				});
 
-				videoElement.addEventListener('play', function() {
+				mediaElement.addEventListener('play', function() {
 					document.getElementById('playButton').style.display = 'none';
 					document.getElementById('pauseButton').style.display = 'table-cell';
 				});
 
-				videoElement.addEventListener('pause', function() {
+				mediaElement.addEventListener('pause', function() {
 					document.getElementById('pauseButton').style.display = 'none';
 					document.getElementById('playButton').style.display = 'table-cell';
 				});
 
-				videoElement.addEventListener('timeupdate', function() {
-					var progress = videoElement.currentTime / videoElement.duration;
+				mediaElement.addEventListener('timeupdate', function() {
+					var progress = mediaElement.currentTime / mediaElement.duration;
 					var progressString = "" + (progress * 100);
-					var currentTimeString = "" + videoElement.currentTime;
-					var durationString = "" + videoElement.duration;
+					var currentTimeString = "" + mediaElement.currentTime;
+					var durationString = "" + mediaElement.duration;
 
 					document.getElementById('playBarProgress').style.width = progressString + "%";
 					document.getElementById('currentTime').innerText = currentTimeString.toHHMMSS();
 					document.getElementById('totalTime').innerText = durationString.toHHMMSS();
 				});
 
-				videoElement.addEventListener('ended', function() {
+				mediaElement.addEventListener('ended', function() {
 					cleanupMedia();
 
 					document.getElementById('splash').style.display = 'table';

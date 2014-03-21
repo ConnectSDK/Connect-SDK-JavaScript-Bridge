@@ -111,6 +111,7 @@ connectsdk.ConnectManager = createClass({
         if (element) {
             this.registerMediaEvents(element);
             this.mediaElement = element;
+            this.mediaElement.autoPlay = true;
             this.emit("mediaElementUpdate", element);
             this.setMediaStatus("idle");
         }
@@ -200,7 +201,6 @@ connectsdk.platforms.Default = {
 
         loadMediaFromURI: function () {
             var media = {
-                type: getParameterByName('mediaType'),
                 url: getParameterByName('target'),
                 mimeType: getParameterByName('mimeType'),
                 title: getParameterByName('title'),
@@ -209,13 +209,19 @@ connectsdk.platforms.Default = {
                 loop: getParameterByName('shouldLoop') === 'true'
             };
 
-            if (media.url && media.type) {
-                console.log("Attempting to load", media.type);
-                if (this.mediaElement && this.mediaElement.tagName.toLowerCase() === media.type) {
-                    console.log("Loading", media.url);
-                    this.mediaElement.src = media.url;
-                } else {
-                    console.log("Failed to load: Media type mismatch.")
+            if (media.url && media.mimeType) {
+                var mediaType = media.mimeType.split('/')[0];
+
+                if (mediaType)
+                {
+                    console.log("Attempting to load", mediaType);
+
+                    if (this.mediaElement && this.mediaElement.tagName.toLowerCase() === mediaType) {
+                        console.log("Loading", media.url);
+                        this.mediaElement.src = media.url;
+                    } else {
+                        console.log("Failed to load: Media type mismatch.")
+                    }
                 }
             }
         },
