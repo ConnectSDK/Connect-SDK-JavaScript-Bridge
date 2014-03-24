@@ -152,7 +152,7 @@ connectsdk.ConnectManager = createClass({
 
         if (userAgent.indexOf('crkey') > 0 && cast != null)
             this.platformType = connectsdk.ConnectManager.PlatformType.GOOGLE_CAST;
-        else if (userAgent.indexOf('lge') >= 0 && userAgent.indexOf('webos') >= 0)
+        else if (userAgent.indexOf('tv') >= 0 && userAgent.indexOf('webos') >= 0)
         {
             if (window.PalmServiceBridge)
                 this.platformType = connectsdk.ConnectManager.PlatformType.WEBOS_NATIVE;
