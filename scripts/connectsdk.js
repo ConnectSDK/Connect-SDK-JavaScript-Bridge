@@ -544,6 +544,11 @@ var connectsdk = (function () {
                     }
                 } else if (commandType === 'getPosition')
                 {
+                    var currentTime = 0;
+
+                    if (mediaElement && mediaElement.currentTime)
+                        currentTime = mediaElement.currentTime;
+
                     this._send({
                         type: 'p2p',
                         to: from,
@@ -551,13 +556,18 @@ var connectsdk = (function () {
                             contentType: 'connectsdk.mediaCommandResponse',
                             mediaCommandResponse: {
                                 type: commandType,
-                                position: mediaElement.currentTime,
+                                position: currentTime,
                                 requestId:requestId
                             }
                         }
                     });
                 } else if (commandType === 'getDuration')
                 {
+                    var duration = 0;
+
+                    if (mediaElement && mediaElement.duration)
+                        duration = mediaElement.duration;
+
                     this._send({
                         type: 'p2p',
                         to: from,
@@ -565,7 +575,7 @@ var connectsdk = (function () {
                             contentType: 'connectsdk.mediaCommandResponse',
                             mediaCommandResponse: {
                                 type: commandType,
-                                duration: mediaElement.duration,
+                                duration: duration,
                                 requestId:requestId
                             }
                         }
