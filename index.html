@@ -9,111 +9,8 @@
 		
 		<title>Connect SDK Test App</title>
 		<link rel="stylesheet" href="css/font-awesome.css" />
+		<link rel="stylesheet" href="css/app.css" />
 		<script src="//www.gstatic.com/cast/sdk/libs/receiver/2.0.0/cast_receiver.js" language="JavaScript" type="text/javascript"></script>
-		<style>
-			html, body {
-			    margin: 0;
-			    padding: 0;
-			    border: 0;
-			    font-family: 'FontAwesome';
-			}
-
-			body {
-				background-color: black;
-			}
-
-			.media {
-				display: none;
-				position: absolute;
-				top: 0;
-				bottom: 0;
-				width: 100%;
-				height: 100%;
-				background-color: black;
-			}
-
-			#image {
-				background-position: center center;
-				background-repeat: no-repeat;
-				background-size: contain;
-			}
-
-			#textContainer {
-				position: absolute;
-				display: none;
-				width: 100%;
-				height: 120px;
-				bottom: 0;
-				background-color: black;
-				opacity: 50%;
-				text-align: center;
-			}
-
-			#textMessage {
-				display: table-cell;
-				vertical-align: middle;
-				color: white;
-				font-size: 30pt;
-			}
-
-			#splash {
-				position: absolute;
-				display: table;
-				width: 100%;
-				height: 100%;
-				text-align: center;
-				top: 0;
-				left: 0;
-				right: 0;
-				bottom: 0;
-				background-color: gray;
-			}
-
-			#splash .fa-smile-o {
-				display: table-cell;
-				vertical-align: middle;
-				color: white;
-				font-size: 200pt;
-			}
-
-			#playControls {
-				position: absolute;
-				display: none;
-				width: 100%;
-				height: 120px;
-				bottom: 0;
-				background-color: black;
-				opacity: 50%;
-				text-align: center;
-			}
-
-			.playControl {
-				display: table-cell;
-				vertical-align: middle;
-				color: white;
-				font-size: 40pt;
-			}
-
-			#pauseButton {
-				display: none;
-			}
-
-			#playBar {
-				position: absolute;
-				display: none;
-				left: 0px;
-				bottom: 120px;
-				width: 100%;
-				height: 5px;
-				background-color: red;
-			}
-
-			#playBarProgress {
-				width: 0px;
-				height: 5px;
-				background-color: orange;
-			}
-		</style>
 	</head>
 	<body>
 		<div id="splash"><i class="fa fa-smile-o"></i></div>
@@ -137,27 +34,9 @@
 			<div id="totalTime" class="playControl">00:00</div>
 		</div>
 
-		<script src="connectsdk.js" language="JavaScript" type="text/javascript"></script>
+		<script src="scripts/app.js" language="JavaScript" type="text/javascript"></script>
+		<script src="scripts/connectsdk.js" language="JavaScript" type="text/javascript"></script>
 		<script language="JavaScript" type="text/javascript">
-			String.prototype.toHHMMSS = function () {
-			    var sec_num = parseInt(this, 10); // don't forget the second param
-			    var hours   = Math.floor(sec_num / 3600);
-			    var minutes = Math.floor((sec_num - (hours * 3600)) / 60);
-			    var seconds = sec_num - (hours * 3600) - (minutes * 60);
-
-			    if (hours   < 10) {hours   = "0"+hours;}
-			    if (minutes < 10) {minutes = "0"+minutes;}
-			    if (seconds < 10) {seconds = "0"+seconds;}
-			    var time;
-
-			    if (hours > 0)
-			        time = hours+':'+minutes+':'+seconds;
-			    else
-			    	time = minutes + ':' + seconds;
-
-			    return time;
-			}
-
 			window.onload = function(evt) {
 				var mimeType = getParameterByName('mimeType');
 				var mediaElement;
@@ -185,16 +64,24 @@
 
 				window.connectManager.on('message', function(message) {
 					var messageString;
+					var isJSON = false;
 
 					if (typeof message == "string")
+					{
 						messageString = message;
-					else if (typeof message == "object")
+					} else if (typeof message == "object")
+					{
 						messageString = JSON.stringify(message);
+						isJSON = true;
+					}
 
 					textContainer.style.display = 'table';
 					textElement.innerText = messageString;
 
-					window.connectManager.sendMessage("I got your message :-)");
+					if (isJSON)
+						window.connectManager.sendMessage({message:"I got your JSON message :-)"});
+					else
+						window.connectManager.sendMessage("I got your message :-)");
 				});
 
 				var cleanupVideo = function() {

@@ -261,16 +261,7 @@ connectsdk.platforms.Default = {
         },
 
         sendMessage: function (message) {
-            var messageJSON;
-
-            try {
-                JSON.parse(message);
-                messageJSON = message;
-            } catch (ex) {
-                messageJSON = { message: message };
-            }
-
-            this.webOSAppChannels.sendMessage(messageJSON);
+            this.webOSAppChannels.sendMessage(message);
         }
     };
 
@@ -327,15 +318,15 @@ connectsdk.platforms.GoogleCast = {
     },
 
     sendMessage: function (message) {
-        var messageString;
+        if (typeof message == 'string')
+            window.castMessageBus.broadcast(message);
+        else
+        {
+            var messageString = JSON.stringify(message);
 
-        try {
-            messageString = JSON.stringify(message);
-        } catch (ex) {
-            messageString = message;
+            if (messageString)
+                window.castMessageBus.broadcast(messageString);
         }
-
-        window.castMessageBus.broadcast(messageString);
     }
 };
 
@@ -520,7 +511,7 @@ connectsdk.WebOSAppChannels = createClass({
             return;
 
         this.sendMessage({
-            contentType: 'mediaEvent',
+            contentType: 'connectsdk.mediaEvent',
             mediaEvent: {
                 type: 'playState',
                 playState: playState,
@@ -535,7 +526,7 @@ connectsdk.WebOSAppChannels = createClass({
         var contentType = message.payload.contentType;
         var from = message.from;
 
-        if (contentType === 'mediaCommand')
+        if (contentType === 'connectsdk.mediaCommand')
         {
             console.log('processing mediaCommand ' + JSON.stringify(message.payload.mediaCommand) + ' of type ' + message.payload.mediaCommand.type);
 
@@ -559,7 +550,7 @@ connectsdk.WebOSAppChannels = createClass({
                     type: 'p2p',
                     to: from,
                     payload: {
-                        contentType: 'mediaCommandResponse',
+                        contentType: 'connectsdk.mediaCommandResponse',
                         mediaCommandResponse: {
                             type: commandType,
                             position: mediaElement.currentTime,
@@ -573,7 +564,7 @@ connectsdk.WebOSAppChannels = createClass({
                     type: 'p2p',
                     to: from,
                     payload: {
-                        contentType: 'mediaCommandResponse',
+                        contentType: 'connectsdk.mediaCommandResponse',
                         mediaCommandResponse: {
                             type: commandType,
                             duration: mediaElement.duration,
