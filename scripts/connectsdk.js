@@ -570,6 +570,22 @@ var connectsdk = (function () {
                             }
                         }
                     });
+                } else if (commandType === 'playMedia')
+                {
+                    // todo: need to handle all of these params
+                    mediaElement.src = message.payload.mediaCommand.mediaURL;
+
+                    this._send({
+                        type: 'p2p',
+                        to: from,
+                        payload: {
+                            contentType: 'connectsdk.mediaCommandResponse',
+                            mediaCommandResponse: {
+                                type: commandType,
+                                requestId:requestId
+                            }
+                        }
+                    });
                 }
             } else
             {
