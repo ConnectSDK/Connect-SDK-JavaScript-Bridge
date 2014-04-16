@@ -47,6 +47,7 @@ var connectsdk = (function () {
             var listeners = this._listeners && this._listeners[event];
             var args = Array.prototype.slice.call(arguments, 1);
 
+            // TODO: upper-case first char
             if (this["on" + event]) {
                 this["on" + event].apply(this, args);
             }
@@ -226,15 +227,12 @@ var connectsdk = (function () {
             }
         },
 
-        loadMedia: function (media) {
+        onLoadMedia: function (media) {
             var mediaElement = this.mediaElement;
-            if (mediaElement && media && media.src) {
-                console.log("Loading", media.src);
-                var metadata = media.metadata;
-                if (metadata) {
-                    metadata.poster && (mediaElement.poster = metadata.poster);
-                }
-                mediaElement.src = media.src;
+            if (mediaElement && media && media.mediaURL) {
+                console.log("Loading", media.mediaURL);
+                // TODO: pull metadata
+                mediaElement.src = media.mediaURL;
                 mediaElement.load();
             } else {
                 console.log("Failed to load media.");
@@ -610,6 +608,8 @@ var connectsdk = (function () {
                 this._handleGetDuration(message);
             } else if (commandType === 'playMedia') {
                 this._handlePlayMedia(message);
+            } else if (commandType === 'displayImage') {
+                this._handleDisplayImage(message);
             }
         },
 
@@ -670,12 +670,29 @@ var connectsdk = (function () {
             var mediaCommand = message.payload.mediaCommand;
             var commandType = mediaCommand.type;
             var requestId = mediaCommand.requestId;
-            var media = {
-                src: mediaCommand.mediaURL,
-                metadata: mediaCommand.metadata
-            };
 
-            this.connectManager.loadMedia(media);
+            this.connectManager.emit('LoadMedia', mediaCommand);
+
+            this._send({
+                type: 'p2p',
+                to: from,
+                payload: {
+                    contentType: 'connectsdk.mediaCommandResponse',
+                    mediaCommandResponse: {
+                        type: commandType,
+                        requestId: requestId
+                    }
+                }
+            });
+        },
+
+        _handleDisplayImage: function (message) {
+            var from = message.from;
+            var mediaCommand = message.payload.mediaCommand;
+            var commandType = mediaCommand.type;
+            var requestId = mediaCommand.requestId;
+
+            this.connectManager.emit('LoadImage', mediaCommand);
 
             this._send({
                 type: 'p2p',
