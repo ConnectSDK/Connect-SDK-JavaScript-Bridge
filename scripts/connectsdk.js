@@ -173,12 +173,14 @@ var connectsdk = (function () {
 
     // Default
     platforms.Default = {
+        interactive: false,
         init: nop,
         sendMessage: nop
     };
 
     // webOS
     var WebOSCommon = {
+        interactive: true,
         init: function () {
             window.addEventListener("keydown", this.onKeyDown.bind(this));
 
@@ -273,6 +275,7 @@ var connectsdk = (function () {
     // Google Cast
     platforms.GoogleCast = {
         name: "Google Cast",
+        interactive: false,
         init: function () {
             this.mediaElement && (window.castMediaManager = new cast.receiver.MediaManager(this.mediaElement));
             this.on("mediaElementUpdate", this.onMediaElementUpdate, this);
