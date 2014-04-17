@@ -6,13 +6,13 @@ Product Manager, Provider of Bubble Teas
 
 Jason Lai -- [GitHub](https://github.com/jlai)
 
-webOS TV second screen APIs, Cordova plugin, Cordova sample apps, Android SDK, documentation
+webOS TV second screen APIs, Cordova plugin, Cordova sample apps, Android SDK, JS Bridge, documentation
 
 ---
 
 Robert Yawn -- [GitHub](https://github.com/reyawn) | [Twitter](http://www.twitter.com/doctor_php)
 
-webOS TV second screen APIs, webOS TV media player
+webOS TV second screen APIs, webOS TV media player, JS Bridge
 
 ---
 
