@@ -1,6 +1,6 @@
 Henry Levak -- [GitHub](https://github.com/henrylevak) | [Twitter](http://www.twitter.com/HenryLevak)
 
-Product Manager, provider of bubble teas
+Product Manager, Provider of Bubble Teas
 
 ---
 
