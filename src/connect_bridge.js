@@ -47,7 +47,9 @@ var connectsdk = (function () {
             var listeners = this._listeners && this._listeners[event];
             var args = Array.prototype.slice.call(arguments, 1);
 
-            // TODO: upper-case first char
+            // upper-case first char
+            // event = event.charAt(0).toUpperCase() + event.slice(1);
+
             if (this["on" + event]) {
                 this["on" + event].apply(this, args);
             }
@@ -112,7 +114,7 @@ var connectsdk = (function () {
                 this.registerMediaEvents(element);
                 this.mediaElement = element;
                 this.mediaElement.autoPlay = true;
-                this.emit("mediaElementUpdate", element);
+                this.emit("MediaElementUpdate", element);
                 this.setMediaStatus("idle");
             }
         },
@@ -168,7 +170,9 @@ var connectsdk = (function () {
 
         init: nop,
 
-        sendMessage: nop
+        sendMessage: nop,
+
+        broadcastMessage: nop
     });
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
@@ -180,7 +184,8 @@ var connectsdk = (function () {
     platforms.Default = {
         interactive: false,
         init: nop,
-        sendMessage: nop
+        sendMessage: nop,
+        broadcastMessage: nop
     };
 
     // webOS
@@ -287,8 +292,12 @@ var connectsdk = (function () {
             this.emit("message", message);
         },
 
-        sendMessage: function (message) {
-            this.webOSAppChannels.sendMessage(message);
+        sendMessage: function (to, message) {
+            this.webOSAppChannels.sendMessage(to, message);
+        },
+
+        broadcastMessage: function (message) {
+            this.webOSAppChannels.broadcastMessage(message);
         }
     };
 
@@ -306,7 +315,7 @@ var connectsdk = (function () {
         interactive: false,
         init: function () {
             this.mediaElement && (window.castMediaManager = new cast.receiver.MediaManager(this.mediaElement));
-            this.on("mediaElementUpdate", this.onMediaElementUpdate, this);
+            this.on("MediaElementUpdate", this.onMediaElementUpdate, this);
 
             window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
 
@@ -319,6 +328,8 @@ var connectsdk = (function () {
         },
 
         onMediaElementUpdate: function (element) {
+            console.log('onMediaElementUpdate ' + element);
+
             if (!element) {
                 return;
             }
@@ -341,10 +352,24 @@ var connectsdk = (function () {
                 message = evt.data;
             }
 
-            this.emit("message", message);
+            this.emit("message", { from: evt.senderId, message: message });
         },
 
-        sendMessage: function (message) {
+        sendMessage: function (to, message) {
+            var messageString;
+
+            if (typeof message == 'string')
+                window.castMessageBus.send(to, message);
+            else
+            {
+                var messageString = JSON.stringify(message);
+
+                if (messageString)
+                    window.castMessageBus.send(to, messageString);
+            }
+        },
+
+        broadcastMessage: function (message) {
             var messageString;
 
             if (typeof message == 'string')
@@ -447,7 +472,17 @@ var connectsdk = (function () {
             console.error("app channel socket not supported");
         },
 
-        sendMessage: function(message) {
+        sendMessage: function(to, message) {
+            var messageData = {
+                type: "p2p",
+                to: to, // TODO: do we need to sanitize/check this value?
+                payload: message
+            };
+
+            this._send(messageData);
+        },
+
+        broadcastMessage: function(message) {
             var messageData = {
                 type: "p2p",
                 payload: message
@@ -542,7 +577,8 @@ var connectsdk = (function () {
                 if (playState == null)
                     return;
 
-                this.sendMessage({
+                // TODO: add to id here
+                this.broadcastMessage({
                     contentType: 'connectsdk.mediaEvent',
                     mediaEvent: {
                         type: 'playState',
@@ -567,7 +603,7 @@ var connectsdk = (function () {
             if (contentType === 'connectsdk.mediaCommand') {
                 this._handleMediaCommand(message);
             } else {
-                this.emit('message', message.payload);
+                this.connectManager.emit('message', { from: message.from, message: message.payload });
             }
         },
 

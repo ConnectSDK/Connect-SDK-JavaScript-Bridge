@@ -62,7 +62,9 @@
 					textElement.innerText = "Ready to receive messages";
 				});
 
-				window.connectManager.on('message', function(message) {
+				window.connectManager.on('message', function(data) {
+					var from = data.from;
+					var message = data.message;
 					var messageString;
 					var isJSON = false;
 
@@ -79,9 +81,9 @@
 					textElement.innerText = messageString;
 
 					if (isJSON)
-						window.connectManager.sendMessage({message:"I got your JSON message :-)"});
+						window.connectManager.sendMessage(from, {message:"I got your JSON message :-)"});
 					else
-						window.connectManager.sendMessage("I got your message :-)");
+						window.connectManager.sendMessage(from, "I got your message :-)");
 				});
 
 				var cleanupVideo = function() {
