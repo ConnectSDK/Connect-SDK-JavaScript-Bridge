@@ -1,9 +1,10 @@
 #!/bin/sh
 
-# Usage:
+# Usage (Linux/OS X)):
+# 0. cd tools
 # 1. npm install -g minifier
-# 2. chmod a+x ./tools/minify.sh
-# 3. ./tools/minify.sh
+# 2. chmod a+x ./minify.sh
+# 3. ./minify.sh
 
 # copy uncompressed JS file and apply header
 cat ./license_header.txt > ../dist/connect_bridge.js
@@ -17,6 +18,9 @@ minify --output /tmp/connect_bridge.min.js ../src/connect_bridge.js
 
 # copy minified JS file contents to min file
 cat /tmp/connect_bridge.min.js >> ../dist/connect_bridge.min.js
+
+# copy minified JS file to sample
+cp ../dist/connect_bridge.min.js ../sample/scripts
 
 # cleanup
 rm /tmp/connect_bridge.min.js
