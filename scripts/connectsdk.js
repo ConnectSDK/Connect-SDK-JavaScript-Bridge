@@ -117,6 +117,14 @@ var connectsdk = (function () {
             }
         },
 
+        setImageElement: function (element) {
+            // Register new image element
+            if (element) {
+                this.imageElement = element;
+                this.emit("imageElementUpdate", element);
+            }
+        },
+
         registerMediaEvents: function (element) {
             if (element) {
                 for (var key in this.mediaEvents) {
@@ -135,10 +143,6 @@ var connectsdk = (function () {
 
         handleMediaEvent: function (evt) {
             this.mediaEvents.hasOwnProperty(evt.type) && this.setMediaStatus(this.mediaEvents[evt.type]);
-        },
-
-        registerImageElement: function (element) {
-            this.imageElement = element;
         },
 
         setMediaStatus: function (status) {
@@ -235,7 +239,17 @@ var connectsdk = (function () {
                 mediaElement.src = media.mediaURL;
                 mediaElement.load();
             } else {
-                console.log("Failed to load media.");
+                console.log("Failed to load media");
+            }
+        },
+
+        onLoadImage: function (image) {
+            var imageElement = this.imageElement;
+            if (imageElement && image && image.mediaURL) {
+                console.log("Loading image", image.mediaURL);
+                imageElement.src = image.mediaURL;
+            } else {
+                console.log("Failed to load image");
             }
         },
 
