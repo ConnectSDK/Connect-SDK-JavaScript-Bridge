@@ -164,7 +164,7 @@ var connectsdk = (function () {
 
             if (userAgent.indexOf('crkey') > 0 && cast != null)
                 this.platformType = ConnectManager.PlatformType.GOOGLE_CAST;
-            else if (userAgent.indexOf('tv') >= 0 && userAgent.indexOf('webos') >= 0)
+            else if (userAgent.indexOf('tv') >= 0 && (userAgent.indexOf('webos') >= 0) || (userAgent.indexOf('web0s') >= 0))
             {
                 if (window.PalmServiceBridge)
                     this.platformType = ConnectManager.PlatformType.WEBOS_NATIVE;
