@@ -404,7 +404,7 @@ var connectsdk = (function () {
             var position = msgData.message.mediaCommand.position;
             if (position) {
                 var requestId = msgData.message.mediaCommand.requestId;
-                var mediaElement = this.connectManager.mediaElement;
+                var mediaElement = this.mediaElement;
                 mediaElement && (mediaElement.currentTime = position);
                 this.handleMediaStatusUpdate(requestId);
             }
