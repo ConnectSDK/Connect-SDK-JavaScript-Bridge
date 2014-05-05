@@ -289,6 +289,10 @@ var connectsdk = (function () {
                 this.handleMediaCommand(msgData);
                 break;
 
+            case "connectsdk.serviceCommand":
+                this.handleServiceCommand(msgData);
+                break;
+
             default:
                 this.emit(ConnectManager.EventType.MESSAGE, msgData);
             }
@@ -318,6 +322,23 @@ var connectsdk = (function () {
                 break;
             case "seek":
                 this.handleSeek(msgData);
+                break;
+            }
+        },
+
+        handleServiceCommand: function (msgData) {
+            var serviceCommand = msgData.message.serviceCommand;
+            if (!serviceCommand) {
+                return;
+            }
+
+            var commandType = serviceCommand.type;
+            console.log('processing serviceCommand ' + JSON.stringify(serviceCommand) + ' of type ' + commandType);
+
+            switch (commandType) {
+            case "close":
+                // this is a hack to circumvent the fact that window.close() doesn't work with the webOS app type
+                window.open(window.location, '_self').close();
                 break;
             }
         },
