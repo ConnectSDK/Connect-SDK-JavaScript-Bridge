@@ -409,7 +409,6 @@ var connectsdk = (function () {
                 if (playState == null)
                     return;
 
-                // TODO: add to id here
                 this.broadcastMessage({
                     contentType: 'connectsdk.mediaEvent',
                     mediaEvent: {
@@ -441,13 +440,25 @@ var connectsdk = (function () {
         },
 
         handleSeek: function (msgData) {
-            var position = msgData.message.mediaCommand.position;
+            var from = msgData.from;
+            var mediaCommand = msgData.message.mediaCommand;
+            var commandType = mediaCommand.type;
+            var requestId = mediaCommand.requestId;
+            var position = mediaCommand.position;
+
             if (position) {
-                var requestId = msgData.message.mediaCommand.requestId;
                 var mediaElement = this.mediaElement;
                 mediaElement && (mediaElement.currentTime = position);
-                this.handleMediaStatusUpdate(requestId);
+                this.handleMediaStatusUpdate(-1);
             }
+
+            this.sendMessage(from, {
+                contentType: 'connectsdk.mediaCommandResponse',
+                mediaCommandResponse: {
+                    type: commandType,
+                    requestId: requestId
+                }
+            });
         }
     };
 
