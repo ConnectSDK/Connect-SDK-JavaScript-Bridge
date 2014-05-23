@@ -48,7 +48,7 @@ var connectsdk = (function () {
             var args = Array.prototype.slice.call(arguments, 1);
 
             // upper-case first char
-            // event = event.charAt(0).toUpperCase() + event.slice(1);
+            event = event.charAt(0).toUpperCase() + event.slice(1);
 
             if (this["on" + event]) {
                 this["on" + event].apply(this, args);
@@ -85,10 +85,12 @@ var connectsdk = (function () {
             },
 
             EventType: {
-                PLAY: "play",
+                MESSAGE: "message",
                 PAUSE: "pause",
+                PLAY: "play",
+                READY: "ready",
                 STOP: "stop",
-                MESSAGE: "message"
+                STATUS: "mediaStatusUpdate"
             }
         },
 
@@ -102,7 +104,16 @@ var connectsdk = (function () {
         },
 
         constructor: function () {
+            this.handleMediaEvent = this.handleMediaEvent.bind(this);
+
             extend(this, platforms[this._detectPlatform()]);
+        },
+
+        setImageElement: function (element) {
+            // Register new image element
+            if (element) {
+                this.imageElement = element;
+            }
         },
 
         setMediaElement: function (element) {
@@ -114,23 +125,19 @@ var connectsdk = (function () {
                 this.registerMediaEvents(element);
                 this.mediaElement = element;
                 this.mediaElement.autoPlay = true;
-                this.emit("MediaElementUpdate", element);
                 this.setMediaStatus("idle");
             }
         },
 
-        setImageElement: function (element) {
-            // Register new image element
-            if (element) {
-                this.imageElement = element;
-                this.emit("imageElementUpdate", element);
-            }
+        setMediaStatus: function (status) {
+            this.mediaStatus = status;
+            this.emit(ConnectManager.EventType.STATUS, status);
         },
 
         registerMediaEvents: function (element) {
             if (element) {
                 for (var key in this.mediaEvents) {
-                    this.mediaEvents.hasOwnProperty(key) && element.addEventListener(key, this.handleMediaEvent.bind(this));
+                    this.mediaEvents.hasOwnProperty(key) && element.addEventListener(key, this.handleMediaEvent, false);
                 }
             }
         },
@@ -138,7 +145,7 @@ var connectsdk = (function () {
         unregisterMediaEvents: function (element) {
             if (element) {
                 for (var key in this.mediaEvents) {
-                    this.mediaEvents.hasOwnProperty(key) && element.removeEventListener(key, this.handleMediaEvent, this);
+                    this.mediaEvents.hasOwnProperty(key) && element.removeEventListener(key, this.handleMediaEvent, false);
                 }
             }
         },
@@ -147,9 +154,8 @@ var connectsdk = (function () {
             this.mediaEvents.hasOwnProperty(evt.type) && this.setMediaStatus(this.mediaEvents[evt.type]);
         },
 
-        setMediaStatus: function (status) {
-            this.mediaStatus = status;
-            this.emit("mediaStatusUpdate", status);
+        handleReady: function (evt) {
+            this.emit(ConnectManager.EventType.READY);
         },
 
         _detectPlatform: function() {
@@ -158,7 +164,7 @@ var connectsdk = (function () {
 
             if (userAgent.indexOf('crkey') > 0 && cast != null)
                 this.platformType = ConnectManager.PlatformType.GOOGLE_CAST;
-            else if (userAgent.indexOf('tv') >= 0 && userAgent.indexOf('webos') >= 0)
+            else if (userAgent.indexOf('tv') >= 0 && (userAgent.indexOf('webos') >= 0) || (userAgent.indexOf('web0s') >= 0))
             {
                 if (window.PalmServiceBridge)
                     this.platformType = ConnectManager.PlatformType.WEBOS_NATIVE;
@@ -192,47 +198,22 @@ var connectsdk = (function () {
     var WebOSCommon = {
         interactive: true,
         init: function () {
-            window.addEventListener("keydown", this.onKeyDown.bind(this));
+            window.addEventListener("keydown", this.handleKeyDown.bind(this));
+            this.on(ConnectManager.EventType.STATUS, this.handleMediaStatusUpdate.bind(this));
 
             this.webOSAppChannels = new WebOSAppChannels();
-            this.webOSAppChannels.connectManager = this;
-
-            this.webOSAppChannels.on('message', this.onMessage.bind(this));
-
-            this.webOSAppChannels.on('ready', this.onReady.bind(this));
-
+            this.webOSAppChannels.on('message', this.handleMessage.bind(this));
+            this.webOSAppChannels.on('ready', this.handleReady.bind(this));
             this.webOSAppChannels.start();
-
-            // Attempt to retrieve the media element from the URI
-            // TODO: change this to use launch params over app2app
-            this.loadMediaFromURI();
         },
 
-        loadMediaFromURI: function () {
-            var media = {
-                url: getParameterByName('target'),
-                mimeType: getParameterByName('mimeType'),
-                title: getParameterByName('title'),
-                description: getParameterByName('description'),
-                iconSrc: getParameterByName('iconSrc'),
-                loop: getParameterByName('shouldLoop') === 'true'
-            };
-
-            if (media.url && media.mimeType) {
-                var mediaType = media.mimeType.split('/')[0];
-
-                if (mediaType)
-                {
-                    console.log("Attempting to load", mediaType);
-
-                    if (this.mediaElement && this.mediaElement.tagName.toLowerCase() === mediaType) {
-                        this.loadMedia({
-                            src: media.url
-                        });
-                    } else {
-                        console.log("Failed to load: Media type mismatch.")
-                    }
-                }
+        onLoadImage: function (image) {
+            var imageElement = this.imageElement;
+            if (imageElement && image && image.mediaURL) {
+                console.log("Loading image", image.mediaURL);
+                imageElement.src = image.mediaURL;
+            } else {
+                console.log("Failed to load image");
             }
         },
 
@@ -248,23 +229,20 @@ var connectsdk = (function () {
             }
         },
 
-        onLoadImage: function (image) {
-            var imageElement = this.imageElement;
-            if (imageElement && image && image.mediaURL) {
-                console.log("Loading image", image.mediaURL);
-                imageElement.src = image.mediaURL;
-            } else {
-                console.log("Failed to load image");
-            }
+        sendMessage: function (to, message) {
+            this.webOSAppChannels.sendMessage(to, message);
         },
 
-        onKeyDown: function (evt) {
+        broadcastMessage: function (message) {
+            this.webOSAppChannels.broadcastMessage(message);
+        },
+
+        handleKeyDown: function (evt) {
             if (!this.mediaElement) {
                 return;
             }
 
-            switch (evt.keyCode)
-            {
+            switch (evt.keyCode) {
             case 415: // PLAY
                 console.log(this.name + " :: play command received");
                 this.mediaElement.play();
@@ -284,20 +262,173 @@ var connectsdk = (function () {
             }
         },
 
-        onReady: function (evt) {
-            this.emit("ready");
+        handleMessage: function (msgData) {
+            var contentType = msgData.message.contentType;
+
+            switch (contentType) {
+            case "connectsdk.mediaCommand":
+                this.handleMediaCommand(msgData);
+                break;
+
+            case "connectsdk.serviceCommand":
+                this.handleServiceCommand(msgData);
+                break;
+
+            default:
+                this.emit(ConnectManager.EventType.MESSAGE, msgData);
+            }
         },
 
-        onMessage: function (message) {
-            this.emit("message", message);
+        handleMediaCommand: function (msgData) {
+            var mediaCommand = msgData.message.mediaCommand;
+            if (!mediaCommand) {
+                return;
+            }
+
+            var commandType = mediaCommand.type;
+            console.log('processing mediaCommand ' + JSON.stringify(mediaCommand) + ' of type ' + commandType);
+
+            switch (commandType) {
+            case "displayImage":
+                this.handleDisplayImage(msgData);
+                break;
+            case "getDuration":
+                this.handleGetDuration(msgData);
+                break;
+            case "getPosition":
+                this.handleGetPosition(msgData);
+                break;
+            case "playMedia":
+                this.handlePlayMedia(msgData);
+                break;
+            case "seek":
+                this.handleSeek(msgData);
+                break;
+            }
         },
 
-        sendMessage: function (to, message) {
-            this.webOSAppChannels.sendMessage(to, message);
+        handleServiceCommand: function (msgData) {
+            var serviceCommand = msgData.message.serviceCommand;
+            if (!serviceCommand) {
+                return;
+            }
+
+            var commandType = serviceCommand.type;
+            console.log('processing serviceCommand ' + JSON.stringify(serviceCommand) + ' of type ' + commandType);
+
+            switch (commandType) {
+            case "close":
+                // this is a hack to circumvent the fact that window.close() doesn't work with the webOS app type
+                window.open(window.location, '_self').close();
+                break;
+            }
         },
 
-        broadcastMessage: function (message) {
-            this.webOSAppChannels.broadcastMessage(message);
+        handleDisplayImage: function (msgData) {
+            var from = msgData.from;
+            var mediaCommand = msgData.message.mediaCommand;
+            var commandType = mediaCommand.type;
+            var requestId = mediaCommand.requestId;
+
+            this.emit('loadImage', mediaCommand);
+
+            this.sendMessage(from, {
+                contentType: 'connectsdk.mediaCommandResponse',
+                mediaCommandResponse: {
+                    type: commandType,
+                    requestId: requestId
+                }
+            });
+        },
+
+        handleGetDuration: function (msgData) {
+            var from = msgData.from;
+            var commandType = msgData.message.mediaCommand.type;
+            var requestId = msgData.message.mediaCommand.requestId;
+            var mediaElement = this.mediaElement;
+            var duration = (mediaElement && mediaElement.duration) || 0;
+
+            this.sendMessage(from, {
+                contentType: 'connectsdk.mediaCommandResponse',
+                mediaCommandResponse: {
+                    type: commandType,
+                    duration: duration,
+                    requestId: requestId
+                }
+            });
+        },
+
+        handleGetPosition: function (msgData) {
+            var from = msgData.from;
+            var commandType = msgData.message.mediaCommand.type;
+            var requestId = msgData.message.mediaCommand.requestId;
+            var mediaElement = this.mediaElement;
+            var currentTime = (mediaElement && mediaElement.currentTime) || 0;
+
+            this.sendMessage(from, {
+                contentType: 'connectsdk.mediaCommandResponse',
+                mediaCommandResponse: {
+                    type: commandType,
+                    position: currentTime,
+                    requestId: requestId
+                }
+            });
+        },
+
+        handleMediaStatusUpdate: function (requestId) {
+            var playState = this.mediaStatus;
+            var currentTime = 0;
+            var duration = 0;
+            var mediaElement = this.mediaElement;
+
+            if (mediaElement) {
+                currentTime = mediaElement.currentTime;
+
+                if (mediaElement.duration != NaN)
+                    duration = mediaElement.duration;
+
+                if (playState == null)
+                    return;
+
+                // TODO: add to id here
+                this.broadcastMessage({
+                    contentType: 'connectsdk.mediaEvent',
+                    mediaEvent: {
+                        type: 'playState',
+                        playState: playState,
+                        position: currentTime,
+                        duration: duration,
+                        requestId: requestId ? requestId : -1
+                    }
+                });
+            }
+        },
+
+        handlePlayMedia: function (msgData) {
+            var from = msgData.from;
+            var mediaCommand = msgData.message.mediaCommand;
+            var commandType = mediaCommand.type;
+            var requestId = mediaCommand.requestId;
+
+            this.emit('loadMedia', mediaCommand);
+
+            this.sendMessage(from, {
+                contentType: 'connectsdk.mediaCommandResponse',
+                mediaCommandResponse: {
+                    type: commandType,
+                    requestId: requestId
+                }
+            });
+        },
+
+        handleSeek: function (msgData) {
+            var position = msgData.message.mediaCommand.position;
+            if (position) {
+                var requestId = msgData.message.mediaCommand.requestId;
+                var mediaElement = this.mediaElement;
+                mediaElement && (mediaElement.currentTime = position);
+                this.handleMediaStatusUpdate(requestId);
+            }
         }
     };
 
@@ -314,22 +445,23 @@ var connectsdk = (function () {
         name: "Google Cast",
         interactive: false,
         init: function () {
-            this.mediaElement && (window.castMediaManager = new cast.receiver.MediaManager(this.mediaElement));
-            this.on("MediaElementUpdate", this.onMediaElementUpdate, this);
+            var origSetMediaElement = this.setMediaElement;
+            this.setMediaElement = function (element) {
+                origSetMediaElement.apply(this, arguments);
+                this._setCastElement(element);
+            };
 
+            this._setCastElement(this.mediaElement);
             window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
+            window.castReceiverManager.addEventListener("ready", this.handleReady.bind(this));
 
             window.castMessageBus = window.castReceiverManager.getCastMessageBus("urn:x-cast:com.connectsdk");
-            window.castMessageBus.addEventListener("message", this.onMessage.bind(this));
-
-            window.castReceiverManager.addEventListener("ready", this.onReady.bind(this));
+            window.castMessageBus.addEventListener("message", this.handleMessage.bind(this));
 
             window.castReceiverManager.start();
         },
 
-        onMediaElementUpdate: function (element) {
-            console.log('onMediaElementUpdate ' + element);
-
+        _setCastElement: function (element) {
             if (!element) {
                 return;
             }
@@ -340,11 +472,7 @@ var connectsdk = (function () {
             }
         },
 
-        onReady: function (evt) {
-            this.emit('ready');
-        },
-
-        onMessage: function (evt) {
+        handleMessage: function (evt) {
             var message;
             try {
                 message = JSON.parse(evt.data);
@@ -352,7 +480,7 @@ var connectsdk = (function () {
                 message = evt.data;
             }
 
-            this.emit("message", { from: evt.senderId, message: message });
+            this.emit(ConnectManager.EventType.MESSAGE, { from: evt.senderId, message: message });
         },
 
         sendMessage: function (to, message) {
@@ -382,7 +510,7 @@ var connectsdk = (function () {
                     window.castMessageBus.broadcast(messageString);
             }
         }
-    }
+    };
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // WebOSAppChannels
@@ -420,7 +548,7 @@ var connectsdk = (function () {
                     request.call(uri, JSON.stringify(params || {}));
 
                     return request;
-                };
+                }
 
                 this.getAppChannelWebSocket = function (callback) {
                     statusSubcription = callService(REGISTER_SERVER_STATUS_URI, {
@@ -453,7 +581,7 @@ var connectsdk = (function () {
                         }
 
                         return dict;
-                    };
+                    }
 
                     var parsed = parse(window.location.search.substr(1));
 
@@ -470,6 +598,67 @@ var connectsdk = (function () {
 
         getAppChannelWebSocket: function (callback) {
             console.error("app channel socket not supported");
+        },
+
+        start: function () {
+            this.stopRequested = false;
+            var self = this;
+
+            !this.ws && this.getAppChannelWebSocket(function (socket) {
+                if (self.stopRequested) {
+                    self.stop();
+                    return;
+                }
+
+                self.ws = socket;
+
+                self.ws.onopen = function (event) {
+                    console.log("websocket opened");
+                    self.emit('ready', event);
+                };
+
+                self.ws.onerror = function (error) {
+                    console.log("websocket error:", error);
+                };
+
+                self.ws.onmessage = function (event) {
+                    try {
+                        var message = JSON.parse(event.data);
+                    } catch (e) {
+                        return; // Ignore the message if it doesn't parse.
+                    }
+                    console.log("got message: " + JSON.stringify(message));
+
+                    switch (message.type) {
+                    case "p2p":
+                        self._handleP2PMessage(message);
+                        break;
+                    case "p2p.depart":
+                        self._handleP2PDepart(message);
+                        break;
+                    case "p2p.join":
+                        self._handleP2PJoin(message);
+                        break;
+                    case "p2p.join-request":
+                        self._handleP2PJoinRequest(message);
+                        break;
+                    }
+                };
+
+                self.ws.onclose = function () {
+                    self.ws = null;
+                };
+            });
+        },
+
+        stop: function () {
+            this.stopRequested = true;
+
+            if (this.ws) {
+                this.ws.close();
+            }
+
+            this._destroy();
         },
 
         sendMessage: function(to, message) {
@@ -504,93 +693,6 @@ var connectsdk = (function () {
             }
         },
 
-        start: function () {
-            this.stopRequested = false;
-            var self = this;
-
-            !this.ws && this.getAppChannelWebSocket(function (socket) {
-                if (self.stopRequested) {
-                    self.stop();
-                    return;
-                }
-
-                self.ws = socket;
-
-                self.ws.onopen = function (event) {
-                    console.log("websocket opened");
-                    self.connectManager.on('mediaStatusUpdate', self._handleMediaStatusUpdate, self);
-                    self.emit('ready', event);
-                };
-
-                self.ws.onerror = function (error) {
-                    console.log("websocket error:", error);
-                };
-
-                self.ws.onmessage = function (event) {
-                    try {
-                        var message = JSON.parse(event.data);
-                    } catch (e) {
-                        // TODO: Handle the parse error. Pass a p2p.error back to the client?
-                    }
-                    console.log("got message: " + JSON.stringify(message));
-
-                    if (message.type === "p2p") {
-                        self._handleP2PMessage(message);
-                    } else if (message.type === "p2p.join-request") {
-                        self._handleP2PJoinRequest(message);
-                    } else if (message.type === "p2p.join") {
-                        self._handleP2PJoin(message);
-                    } else if (message.type === "p2p.depart") {
-                        self._handleP2PDepart(message);
-                    }
-                };
-
-                self.ws.onclose = function () {
-                    self.connectManager.off('mediaStatusUpdate', self._handleMediaStatusUpdate, self);
-                    self.ws = null;
-                };
-            });
-        },
-
-        stop: function () {
-            this.stopRequested = true;
-
-            if (this.ws) {
-                this.ws.close();
-            }
-
-            this._destroy();
-        },
-
-        _handleMediaStatusUpdate: function (requestId) {
-            var playState = this.connectManager.mediaStatus;
-            var currentTime = 0;
-            var duration = 0;
-            var mediaElement = this.connectManager.mediaElement;
-
-            if (mediaElement) {
-                currentTime = mediaElement.currentTime;
-
-                if (mediaElement.duration != NaN)
-                    duration = mediaElement.duration;
-
-                if (playState == null)
-                    return;
-
-                // TODO: add to id here
-                this.broadcastMessage({
-                    contentType: 'connectsdk.mediaEvent',
-                    mediaEvent: {
-                        type: 'playState',
-                        playState: playState,
-                        position: currentTime,
-                        duration: duration,
-                        requestId: requestId ? requestId : -1
-                    }
-                });
-            }
-        },
-
         _handleP2PMessage: function (message) {
             var payload = message.payload;
             if (!payload) {
@@ -598,13 +700,7 @@ var connectsdk = (function () {
             }
 
             console.log('processing message payload ' + JSON.stringify(payload));
-            var contentType = message.payload.contentType;
-
-            if (contentType === 'connectsdk.mediaCommand') {
-                this._handleMediaCommand(message);
-            } else {
-                this.connectManager.emit('message', { from: message.from, message: message.payload });
-            }
+            this.emit('message', {from: message.from, message: message.payload});
         },
 
         _handleP2PJoinRequest: function (message) {
@@ -638,123 +734,6 @@ var connectsdk = (function () {
             }
 
             this.emit("depart", {client: payload.client});
-        },
-
-        // TODO: Move media handling to ConnectManager webOS platform (it is a connectsdk-specific use case of the app2app functionality)
-        _handleMediaCommand: function (message) {
-            var mediaCommand = message.payload.mediaCommand;
-            if (!mediaCommand) {
-                return;
-            }
-
-            var commandType = mediaCommand.type;
-            console.log('processing mediaCommand ' + JSON.stringify(mediaCommand) + ' of type ' + commandType);
-
-            if (commandType === 'seek') {
-                this._handleSeekCommand(message);
-            } else if (commandType === 'getPosition') {
-                this._handleGetPosition(message);
-            } else if (commandType === 'getDuration') {
-                this._handleGetDuration(message);
-            } else if (commandType === 'playMedia') {
-                this._handlePlayMedia(message);
-            } else if (commandType === 'displayImage') {
-                this._handleDisplayImage(message);
-            }
-        },
-
-        _handleSeekCommand: function (message) {
-            var position = message.payload.mediaCommand.position;
-            if (position) {
-                var requestId = message.payload.mediaCommand.requestId;
-                var mediaElement = this.connectManager.mediaElement;
-                mediaElement.currentTime = position;
-                this._handleMediaStatusUpdate(requestId);
-            }
-        },
-
-        _handleGetDuration: function (message) {
-            var from = message.from;
-            var commandType = message.payload.mediaCommand.type;
-            var requestId = message.payload.mediaCommand.requestId;
-            var mediaElement = this.connectManager.mediaElement;
-            var duration = (mediaElement && mediaElement.duration) || 0;
-
-            this._send({
-                type: 'p2p',
-                to: from,
-                payload: {
-                    contentType: 'connectsdk.mediaCommandResponse',
-                    mediaCommandResponse: {
-                        type: commandType,
-                        duration: duration,
-                        requestId: requestId
-                    }
-                }
-            });
-        },
-
-        _handleGetPosition: function (message) {
-            var from = message.from;
-            var commandType = message.payload.mediaCommand.type;
-            var requestId = message.payload.mediaCommand.requestId;
-            var mediaElement = this.connectManager.mediaElement;
-            var currentTime = (mediaElement && mediaElement.currentTime) || 0;
-
-            this._send({
-                type: 'p2p',
-                to: from,
-                payload: {
-                    contentType: 'connectsdk.mediaCommandResponse',
-                    mediaCommandResponse: {
-                        type: commandType,
-                        position: currentTime,
-                        requestId: requestId
-                    }
-                }
-            });
-        },
-
-        _handlePlayMedia: function (message) {
-            var from = message.from;
-            var mediaCommand = message.payload.mediaCommand;
-            var commandType = mediaCommand.type;
-            var requestId = mediaCommand.requestId;
-
-            this.connectManager.emit('LoadMedia', mediaCommand);
-
-            this._send({
-                type: 'p2p',
-                to: from,
-                payload: {
-                    contentType: 'connectsdk.mediaCommandResponse',
-                    mediaCommandResponse: {
-                        type: commandType,
-                        requestId: requestId
-                    }
-                }
-            });
-        },
-
-        _handleDisplayImage: function (message) {
-            var from = message.from;
-            var mediaCommand = message.payload.mediaCommand;
-            var commandType = mediaCommand.type;
-            var requestId = mediaCommand.requestId;
-
-            this.connectManager.emit('LoadImage', mediaCommand);
-
-            this._send({
-                type: 'p2p',
-                to: from,
-                payload: {
-                    contentType: 'connectsdk.mediaCommandResponse',
-                    mediaCommandResponse: {
-                        type: commandType,
-                        requestId: requestId
-                    }
-                }
-            });
         }
     });
 
