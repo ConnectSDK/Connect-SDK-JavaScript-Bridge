@@ -79,6 +79,7 @@ var connectsdk = (function () {
         statics: {
             PlatformType: {
                 DEFAULT: "Default",
+                AIRPLAY: "AirPlay",
                 GOOGLE_CAST: "GoogleCast",
                 WEBOS_NATIVE: "WebOSNative",
                 WEBOS_WEB_APP: "WebOSWebApp"
@@ -162,7 +163,9 @@ var connectsdk = (function () {
             var userAgent = navigator.userAgent.toLowerCase();
             this.platformType = ConnectManager.PlatformType.DEFAULT;
 
-            if (userAgent.indexOf('crkey') > 0 && cast != null)
+            if (userAgent.indexOf('iphone os') >= 0)
+                this.platformType = ConnectManager.PlatformType.AIRPLAY;
+            else if (userAgent.indexOf('crkey') > 0 && cast != null)
                 this.platformType = ConnectManager.PlatformType.GOOGLE_CAST;
             else if (userAgent.indexOf('tv') >= 0 && (userAgent.indexOf('webos') >= 0) || (userAgent.indexOf('web0s') >= 0))
             {
@@ -194,17 +197,11 @@ var connectsdk = (function () {
         broadcastMessage: nop
     };
 
-    // webOS
-    var WebOSCommon = {
-        interactive: true,
-        init: function () {
-            window.addEventListener("keydown", this.handleKeyDown.bind(this));
-            this.on(ConnectManager.EventType.STATUS, this.handleMediaStatusUpdate.bind(this));
+    // Base media player (JSON media playback & control commands)
 
-            this.webOSAppChannels = new WebOSAppChannels();
-            this.webOSAppChannels.on('message', this.handleMessage.bind(this));
-            this.webOSAppChannels.on('ready', this.handleReady.bind(this));
-            this.webOSAppChannels.start();
+    var BaseMediaPlayer = {
+        init: function () {
+            this.on(ConnectManager.EventType.STATUS, this.handleMediaStatusUpdate.bind(this));
         },
 
         onLoadImage: function (image) {
@@ -226,101 +223,6 @@ var connectsdk = (function () {
                 mediaElement.load();
             } else {
                 console.log("Failed to load media");
-            }
-        },
-
-        sendMessage: function (to, message) {
-            this.webOSAppChannels.sendMessage(to, message);
-        },
-
-        broadcastMessage: function (message) {
-            this.webOSAppChannels.broadcastMessage(message);
-        },
-
-        handleKeyDown: function (evt) {
-            if (!this.mediaElement) {
-                return;
-            }
-
-            switch (evt.keyCode) {
-            case 415: // PLAY
-                console.log(this.name + " :: play command received");
-                this.mediaElement.play();
-                this.emit(ConnectManager.EventType.PLAY);
-                break;
-
-            case 19: // PAUSE
-                console.log(this.name + " :: pause command received");
-                this.mediaElement.pause();
-                this.emit(ConnectManager.EventType.PAUSE);
-                break;
-
-            case 413: // STOP
-                console.log(this.name + " :: stop command received");
-                this.emit(ConnectManager.EventType.STOP);
-                break;
-            }
-        },
-
-        handleMessage: function (msgData) {
-            var contentType = msgData.message.contentType;
-
-            switch (contentType) {
-            case "connectsdk.mediaCommand":
-                this.handleMediaCommand(msgData);
-                break;
-
-            case "connectsdk.serviceCommand":
-                this.handleServiceCommand(msgData);
-                break;
-
-            default:
-                this.emit(ConnectManager.EventType.MESSAGE, msgData);
-            }
-        },
-
-        handleMediaCommand: function (msgData) {
-            var mediaCommand = msgData.message.mediaCommand;
-            if (!mediaCommand) {
-                return;
-            }
-
-            var commandType = mediaCommand.type;
-            console.log('processing mediaCommand ' + JSON.stringify(mediaCommand) + ' of type ' + commandType);
-
-            switch (commandType) {
-            case "displayImage":
-                this.handleDisplayImage(msgData);
-                break;
-            case "getDuration":
-                this.handleGetDuration(msgData);
-                break;
-            case "getPosition":
-                this.handleGetPosition(msgData);
-                break;
-            case "playMedia":
-                this.handlePlayMedia(msgData);
-                break;
-            case "seek":
-                this.handleSeek(msgData);
-                break;
-            }
-        },
-
-        handleServiceCommand: function (msgData) {
-            var serviceCommand = msgData.message.serviceCommand;
-            if (!serviceCommand) {
-                return;
-            }
-
-            var commandType = serviceCommand.type;
-            console.log('processing serviceCommand ' + JSON.stringify(serviceCommand) + ' of type ' + commandType);
-
-            switch (commandType) {
-            case "close":
-                // this is a hack to circumvent the fact that window.close() doesn't work with the webOS app type
-                window.open(window.location, '_self').close();
-                break;
             }
         },
 
@@ -440,8 +342,122 @@ var connectsdk = (function () {
                     requestId: requestId
                 }
             });
-        }
+        },
+
+        handleMessage: function (msgData) {
+            var contentType = null;
+
+            if (msgData != null && msgData.message != null)
+                contentType = msgData.message.contentType;
+
+            switch (contentType) {
+            case "connectsdk.mediaCommand":
+                this.handleMediaCommand(msgData);
+                break;
+
+            case "connectsdk.serviceCommand":
+                this.handleServiceCommand(msgData);
+                break;
+
+            default:
+                this.emit(ConnectManager.EventType.MESSAGE, msgData);
+            }
+        },
+
+        handleMediaCommand: function (msgData) {
+            var mediaCommand = msgData.message.mediaCommand;
+            if (!mediaCommand) {
+                return;
+            }
+
+            var commandType = mediaCommand.type;
+            console.log('processing mediaCommand ' + JSON.stringify(mediaCommand) + ' of type ' + commandType);
+
+            switch (commandType) {
+            case "displayImage":
+                this.handleDisplayImage(msgData);
+                break;
+            case "getDuration":
+                this.handleGetDuration(msgData);
+                break;
+            case "getPosition":
+                this.handleGetPosition(msgData);
+                break;
+            case "playMedia":
+                this.handlePlayMedia(msgData);
+                break;
+            case "seek":
+                this.handleSeek(msgData);
+                break;
+            }
+        },
+
+        handleServiceCommand: nop
     };
+
+    // webOS
+    var WebOSCommon = extend({
+        interactive: true,
+        init: function () {
+            window.addEventListener("keydown", this.handleKeyDown.bind(this));
+            this.on(ConnectManager.EventType.STATUS, this.handleMediaStatusUpdate.bind(this));
+
+            this.webOSAppChannels = new WebOSAppChannels();
+            this.webOSAppChannels.on('message', this.handleMessage.bind(this));
+            this.webOSAppChannels.on('ready', this.handleReady.bind(this));
+            this.webOSAppChannels.start();
+        },
+
+        sendMessage: function (to, message) {
+            this.webOSAppChannels.sendMessage(to, message);
+        },
+
+        broadcastMessage: function (message) {
+            this.webOSAppChannels.broadcastMessage(message);
+        },
+
+        handleKeyDown: function (evt) {
+            if (!this.mediaElement) {
+                return;
+            }
+
+            switch (evt.keyCode) {
+            case 415: // PLAY
+                console.log(this.name + " :: play command received");
+                this.mediaElement.play();
+                this.emit(ConnectManager.EventType.PLAY);
+                break;
+
+            case 19: // PAUSE
+                console.log(this.name + " :: pause command received");
+                this.mediaElement.pause();
+                this.emit(ConnectManager.EventType.PAUSE);
+                break;
+
+            case 413: // STOP
+                console.log(this.name + " :: stop command received");
+                this.emit(ConnectManager.EventType.STOP);
+                break;
+            }
+        },
+
+        handleServiceCommand: function (msgData) {
+            var serviceCommand = msgData.message.serviceCommand;
+            if (!serviceCommand) {
+                return;
+            }
+
+            var commandType = serviceCommand.type;
+            console.log('processing serviceCommand ' + JSON.stringify(serviceCommand) + ' of type ' + commandType);
+
+            switch (commandType) {
+            case "close":
+                // this is a hack to circumvent the fact that window.close() doesn't work with the webOS app type
+                window.open(window.location, '_self').close();
+                break;
+            }
+        }
+    }, BaseMediaPlayer);
 
     platforms.WebOSNative = extend({
         name: "webOS Native Web App"
@@ -450,6 +466,32 @@ var connectsdk = (function () {
     platforms.WebOSWebApp = extend({
         name: "webOS Web App"
     }, WebOSCommon);
+
+    // AirPlay
+    platforms.AirPlay = extend({
+        name: "AirPlay",
+        interactive: true,
+
+        sendMessage: function (to, message) {
+            // AirPlay does not have p2p support, so we'll just 'broadcast' this message
+            this.broadcastMessage(message);
+        },
+
+        broadcastMessage: function (message) {
+            var messageString;
+
+            if (typeof message == 'string')
+                messageString = message;
+            else
+                messageString = JSON.stringify(message);
+
+            var iframe = document.createElement('IFRAME');
+            iframe.setAttribute('src', 'connectsdk://' + messageString);
+            document.documentElement.appendChild(iframe);
+            iframe.parentNode.removeChild(iframe);
+            iframe = null;
+        }
+    }, BaseMediaPlayer),
 
     // Google Cast
     platforms.GoogleCast = {
