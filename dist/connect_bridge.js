@@ -363,6 +363,42 @@ var connectsdk = (function () {
             });
         },
 
+        handlePlay: function (msgData) {
+            var from = msgData.from;
+            var mediaCommand = msgData.message.mediaCommand;
+            var commandType = mediaCommand.type;
+            var requestId = mediaCommand.requestId;
+
+            var mediaElement = this.mediaElement;
+            mediaElement && mediaElement.play();
+
+            this.sendMessage(from, {
+                contentType: 'connectsdk.mediaCommandResponse',
+                mediaCommandResponse: {
+                    type: commandType,
+                    requestId: requestId
+                }
+            });
+        },
+
+        handlePause: function (msgData) {
+            var from = msgData.from;
+            var mediaCommand = msgData.message.mediaCommand;
+            var commandType = mediaCommand.type;
+            var requestId = mediaCommand.requestId;
+
+            var mediaElement = this.mediaElement;
+            mediaElement && mediaElement.pause();
+
+            this.sendMessage(from, {
+                contentType: 'connectsdk.mediaCommandResponse',
+                mediaCommandResponse: {
+                    type: commandType,
+                    requestId: requestId
+                }
+            });
+        },
+
         handleMessage: function (msgData) {
             var contentType = null;
 
@@ -407,6 +443,12 @@ var connectsdk = (function () {
                 break;
             case "seek":
                 this.handleSeek(msgData);
+                break;
+            case "play":
+                this.handlePlay(msgData);
+                break;
+            case "pause":
+                this.handlePause(msgData);
                 break;
             }
         },
