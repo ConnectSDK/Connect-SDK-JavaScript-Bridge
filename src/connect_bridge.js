@@ -200,9 +200,6 @@ var connectsdk = (function () {
     // Base media player (JSON media playback & control commands)
 
     var BaseMediaPlayer = {
-        init: function () {
-            this.on(ConnectManager.EventType.STATUS, this.handleMediaStatusUpdate.bind(this));
-        },
 
         onLoadImage: function (image) {
             var imageElement = this.imageElement;
@@ -513,6 +510,10 @@ var connectsdk = (function () {
     platforms.AirPlay = extend({
         name: "AirPlay",
         interactive: true,
+
+        init: function() {
+            this.on(ConnectManager.EventType.STATUS, this.handleMediaStatusUpdate.bind(this));
+        },
 
         sendMessage: function (to, message) {
             // AirPlay does not have p2p support, so we'll just 'broadcast' this message
