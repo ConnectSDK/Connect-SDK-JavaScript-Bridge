@@ -450,7 +450,22 @@ var connectsdk = (function () {
             }
         },
 
-        handleServiceCommand: nop
+        handleServiceCommand: function (msgData) {
+            var serviceCommand = msgData.message.serviceCommand;
+            if (!serviceCommand) {
+                return;
+            }
+
+            var commandType = serviceCommand.type;
+            console.log('processing serviceCommand ' + JSON.stringify(serviceCommand) + ' of type ' + commandType);
+
+            switch (commandType) {
+            case "close":
+                // this is a hack to circumvent the fact that window.close() doesn't work with the webOS app type
+                window.open(window.location, '_self').close();
+                break;
+            }
+        }
     };
 
     // webOS
@@ -495,23 +510,6 @@ var connectsdk = (function () {
             case 413: // STOP
                 console.log(this.name + " :: stop command received");
                 this.emit(ConnectManager.EventType.STOP);
-                break;
-            }
-        },
-
-        handleServiceCommand: function (msgData) {
-            var serviceCommand = msgData.message.serviceCommand;
-            if (!serviceCommand) {
-                return;
-            }
-
-            var commandType = serviceCommand.type;
-            console.log('processing serviceCommand ' + JSON.stringify(serviceCommand) + ' of type ' + commandType);
-
-            switch (commandType) {
-            case "close":
-                // this is a hack to circumvent the fact that window.close() doesn't work with the webOS app type
-                window.open(window.location, '_self').close();
                 break;
             }
         }
