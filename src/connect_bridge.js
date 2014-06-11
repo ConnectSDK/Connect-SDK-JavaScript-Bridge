@@ -659,6 +659,7 @@ var connectsdk = (function () {
                 };
             } else {
                 // Look for "webOSAppChannelSocketUrl" parameter
+                var foundSocketUrl = false;
                 if (window.location.search) {
                     console.log("found params: ", window.location.search);
                     /**
@@ -681,11 +682,30 @@ var connectsdk = (function () {
 
                     if (parsed.webOSAppChannelSocketUrl) {
                         console.log("found websocket URL: ", parsed.webOSAppChannelSocketUrl);
+                        foundSocketUrl = true;
 
                         this.getAppChannelWebSocket = function (callback) {
                             callback(new WebSocket(parsed.webOSAppChannelSocketUrl));
                         };
                     }
+                }
+
+                if (!foundSocketUrl && window.NetCastCreateAppChannel) {
+                    var callbackName = "_webOSCreateAppChannelCallback";
+
+                    this.getAppChannelWebSocket = function (callback) {
+
+                        window[callbackName] = function (response) {
+                            delete window[callbackName];
+                            //console.log("got NetCastCreateAppChannel response: " + JSON.stringify(response));
+
+                            if (response.socketUrl) {
+                                callback(new WebSocket(response.socketUrl));
+                            }
+                        };
+
+                        window.NetCastCreateAppChannel('{}', callbackName, false);
+                    };
                 }
             }
         },
