@@ -101,7 +101,8 @@ var connectsdk = (function () {
                 AIRPLAY: "AirPlay",
                 GOOGLE_CAST: "GoogleCast",
                 WEBOS_NATIVE: "WebOSNative",
-                WEBOS_WEB_APP: "WebOSWebApp"
+                WEBOS_WEB_APP: "WebOSWebApp",
+                MULTISCREEN: "MultiScreen"
             },
 
             EventType: {
@@ -192,7 +193,11 @@ var connectsdk = (function () {
                     this.platformType = ConnectManager.PlatformType.WEBOS_NATIVE;
                 else
                     this.platformType = ConnectManager.PlatformType.WEBOS_WEB_APP;
-            }
+            } else if (userAgent.indexOf('smarttv+2014; maple2012') >= 0)
+                this.platformType = ConnectManager.PlatformType.MULTISCREEN;
+
+            console.log("detected type " + this.platformType + "(" + navigator.userAgent + ")");
+
             return this.platformType;
         },
 
@@ -399,8 +404,12 @@ var connectsdk = (function () {
         handleMessage: function (msgData) {
             var contentType = null;
 
-            if (msgData != null && msgData.message != null)
+            if (msgData != null && msgData.message != null) {
                 contentType = msgData.message.contentType;
+
+                if (contentType == null)
+                    contentType = JSON.parse(msgData.message).contentType;
+            }
 
             switch (contentType) {
             case "connectsdk.mediaCommand":
@@ -623,7 +632,85 @@ var connectsdk = (function () {
                     window.castMessageBus.broadcast(messageString);
             }
         }
-    };
+    },
+
+    platforms.MultiScreen = extend({
+        name: "Samsung MultiScreen",
+        interactive: true,
+        init: function () {
+            // Variables related to API
+            this.channel = null;
+            this.localDevice = null;
+
+            if (this.channelId == null)
+                this.channelId = "com.connectsdk.MainChannel";
+
+            var ms = window.webapis.multiscreen;
+
+            ms.Device.getCurrent(this._handleDeviceRetrieved.bind(this), null);
+
+            var origSetMediaElement = this.setMediaElement;
+            this.setMediaElement = function (element) {
+                origSetMediaElement.apply(this, arguments);
+                this._setCastElement(element);
+            };
+
+            window.onPause = this._handleWindowPause.bind(this);
+            window.onResume = this._handleWindowResume.bind(this);
+        },
+
+        _handleDeviceRetrieved: function(device) {
+            this.localDevice = device;
+            this.localDevice.openChannel(this.channelId, {name: "Host"}, this._handleConnect.bind(this), null);
+        },
+
+        _handleConnect: function(channel) {
+            this.channel = channel;
+            this.channel.on("message", this._handleMessage.bind(this));
+        },
+
+        _handleWindowPause: function(event) {
+            if (this.channel) {
+                this.channel.disconnect();
+            }
+        },
+
+        _handleWindowResume: function(event) {
+            this._handleDeviceRetrieved(this.localDevice);
+        },
+
+        _handleMessage: function(rawMessage, client) {
+            this.handleMessage({from: client.id, message: rawMessage});
+        },
+
+        sendMessage: function (to, message) {
+            var messageString;
+
+            if (typeof message == 'string')
+                this.channel.send(message, to);
+            else
+            {
+                var messageString = JSON.stringify(message);
+
+                if (messageString)
+                    this.channel.send(messageString, to);
+            }
+        },
+
+        broadcastMessage: function (message) {
+            var messageString;
+
+            if (typeof message == 'string')
+                this.channel.broadcast(message);
+            else
+            {
+                var messageString = JSON.stringify(message);
+
+                if (messageString)
+                    this.channel.broadcast(messageString);
+            }
+        }
+    }, BaseMediaPlayer);
 
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // WebOSAppChannels
