@@ -1,3 +1,16 @@
+// Samsung MultiScreen setup
+if (navigator.userAgent.search(/Maple/) > -1) {
+    document.write('<script src="$MANAGER_WIDGET/Common/API/Widget.js"><\/script>');
+    document.write('<script src="$MANAGER_WIDGET/Common/API/TVKeyValue.js"><\/script>');
+    document.write('<script src="$MANAGER_WIDGET/Common/API/Plugin.js"><\/script>');
+}
+
+window.addEventListener("load", function(evt) {
+    var widgetAPI = new Common.API.Widget();
+    widgetAPI.sendReadyEvent();
+});
+
+// Connect SDK JavaScript Bridge API Declarations
 var connectsdk = (function () {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Mixins
@@ -174,7 +187,7 @@ var connectsdk = (function () {
                     this.platformType = ConnectManager.PlatformType.WEBOS_NATIVE;
                 else
                     this.platformType = ConnectManager.PlatformType.WEBOS_WEB_APP;
-            } else if (userAgent.indexOf('smarttv+2014; maple2012') >= 0)
+            } else if (navigator.userAgent.search(/Maple/) > -1)
                 this.platformType = ConnectManager.PlatformType.MULTISCREEN;
 
             console.log("detected type " + this.platformType + "(" + navigator.userAgent + ")");
