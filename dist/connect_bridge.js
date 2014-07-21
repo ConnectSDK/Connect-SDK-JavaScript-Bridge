@@ -17,6 +17,19 @@
 //  See the License for the specific language governing permissions and
 //  limitations under the License.
 //
+// Samsung MultiScreen setup
+if (navigator.userAgent.search(/Maple/) > -1) {
+    document.write('<script src="$MANAGER_WIDGET/Common/API/Widget.js"><\/script>');
+    document.write('<script src="$MANAGER_WIDGET/Common/API/TVKeyValue.js"><\/script>');
+    document.write('<script src="$MANAGER_WIDGET/Common/API/Plugin.js"><\/script>');
+}
+
+window.addEventListener("load", function(evt) {
+    var widgetAPI = new Common.API.Widget();
+    widgetAPI.sendReadyEvent();
+});
+
+// Connect SDK JavaScript Bridge API Declarations
 var connectsdk = (function () {
 ////////////////////////////////////////////////////////////////////////////////////////////////////////////////
 // Mixins
@@ -193,7 +206,7 @@ var connectsdk = (function () {
                     this.platformType = ConnectManager.PlatformType.WEBOS_NATIVE;
                 else
                     this.platformType = ConnectManager.PlatformType.WEBOS_WEB_APP;
-            } else if (userAgent.indexOf('smarttv+2014; maple2012') >= 0)
+            } else if (navigator.userAgent.search(/Maple/) > -1)
                 this.platformType = ConnectManager.PlatformType.MULTISCREEN;
 
             console.log("detected type " + this.platformType + "(" + navigator.userAgent + ")");
@@ -407,8 +420,13 @@ var connectsdk = (function () {
             if (msgData != null && msgData.message != null) {
                 contentType = msgData.message.contentType;
 
-                if (contentType == null)
-                    contentType = JSON.parse(msgData.message).contentType;
+                if (contentType == null) {
+                    try {
+                        contentType = JSON.parse(msgData.message).contentType;
+                    } catch (ex) {
+                        // don't need to do anything here
+                    }
+                }
             }
 
             switch (contentType) {
@@ -680,7 +698,20 @@ var connectsdk = (function () {
         },
 
         _handleMessage: function(rawMessage, client) {
-            this.handleMessage({from: client.id, message: rawMessage});
+            console.log("got message (" + rawMessage + ") from client: " + client + " with id " + client.id);
+
+            var message;
+
+            try {
+                message = JSON.parse(rawMessage);
+            } catch (ex) {
+                message = rawMessage;
+            } finally {
+                if (typeof message === 'string')
+                    this.emit(ConnectManager.EventType.MESSAGE, { from: client.id, message: message });
+                else
+                    this.handleMessage({from: client.id, message: message});
+            }
         },
 
         sendMessage: function (to, message) {
