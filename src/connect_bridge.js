@@ -401,8 +401,13 @@ var connectsdk = (function () {
             if (msgData != null && msgData.message != null) {
                 contentType = msgData.message.contentType;
 
-                if (contentType == null)
-                    contentType = JSON.parse(msgData.message).contentType;
+                if (contentType == null) {
+                    try {
+                        contentType = JSON.parse(msgData.message).contentType;
+                    } catch (ex) {
+                        // don't need to do anything here
+                    }
+                }
             }
 
             switch (contentType) {
@@ -674,7 +679,20 @@ var connectsdk = (function () {
         },
 
         _handleMessage: function(rawMessage, client) {
-            this.handleMessage({from: client.id, message: rawMessage});
+            console.log("got message (" + rawMessage + ") from client: " + client + " with id " + client.id);
+
+            var message;
+
+            try {
+                message = JSON.parse(rawMessage);
+            } catch (ex) {
+                message = rawMessage;
+            } finally {
+                if (typeof message === 'string')
+                    this.emit(ConnectManager.EventType.MESSAGE, { from: client.id, message: message });
+                else
+                    this.handleMessage({from: client.id, message: message});
+            }
         },
 
         sendMessage: function (to, message) {
