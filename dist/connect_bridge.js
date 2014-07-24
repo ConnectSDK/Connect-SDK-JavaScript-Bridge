@@ -22,12 +22,12 @@ if (navigator.userAgent.search(/Maple/) > -1) {
     document.write('<script src="$MANAGER_WIDGET/Common/API/Widget.js"><\/script>');
     document.write('<script src="$MANAGER_WIDGET/Common/API/TVKeyValue.js"><\/script>');
     document.write('<script src="$MANAGER_WIDGET/Common/API/Plugin.js"><\/script>');
-}
 
-window.addEventListener("load", function(evt) {
-    var widgetAPI = new Common.API.Widget();
-    widgetAPI.sendReadyEvent();
-});
+    window.addEventListener("load", function(evt) {
+        var widgetAPI = new Common.API.Widget();
+        widgetAPI.sendReadyEvent();
+    });
+}
 
 // Connect SDK JavaScript Bridge API Declarations
 var connectsdk = (function () {
@@ -489,7 +489,12 @@ var connectsdk = (function () {
             switch (commandType) {
             case "close":
                 // this is a hack to circumvent the fact that window.close() doesn't work with the webOS app type
-                window.open(window.location, '_self').close();
+                var newWindow = window.open(window.location, '_self');
+
+                if (newWindow != null)
+                    newWindow.close();
+                else
+                    window.close();
                 break;
             }
         }
@@ -673,6 +678,8 @@ var connectsdk = (function () {
                 this._setCastElement(element);
             };
 
+            this.on(ConnectManager.EventType.STATUS, this.handleMediaStatusUpdate.bind(this));
+
             window.onPause = this._handleWindowPause.bind(this);
             window.onResume = this._handleWindowResume.bind(this);
         },
@@ -739,6 +746,25 @@ var connectsdk = (function () {
 
                 if (messageString)
                     this.channel.broadcast(messageString);
+            }
+        },
+
+        handleServiceCommand: function (msgData) {
+            var serviceCommand = msgData.message.serviceCommand;
+            if (!serviceCommand) {
+                return;
+            }
+
+            var commandType = serviceCommand.type;
+            console.log('processing serviceCommand ' + JSON.stringify(serviceCommand) + ' of type ' + commandType);
+
+            var widgetAPI = null;
+
+            switch (commandType) {
+            case "close":
+                widgetAPI = new Common.API.Widget();
+                widgetAPI.sendExitEvent();
+                break;
             }
         }
     }, BaseMediaPlayer);
@@ -1030,7 +1056,7 @@ var connectsdk = (function () {
 
     function extend(a, b) {
         for (var key in b) {
-            if (b.hasOwnProperty(key)) {
+            if (b.hasOwnProperty(key) && !a.hasOwnProperty(key)) {
                 a[key] = b[key]
             }
         }
