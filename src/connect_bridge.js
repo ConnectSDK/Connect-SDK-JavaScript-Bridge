@@ -3,12 +3,12 @@ if (navigator.userAgent.search(/Maple/) > -1) {
     document.write('<script src="$MANAGER_WIDGET/Common/API/Widget.js"><\/script>');
     document.write('<script src="$MANAGER_WIDGET/Common/API/TVKeyValue.js"><\/script>');
     document.write('<script src="$MANAGER_WIDGET/Common/API/Plugin.js"><\/script>');
-}
 
-window.addEventListener("load", function(evt) {
-    var widgetAPI = new Common.API.Widget();
-    widgetAPI.sendReadyEvent();
-});
+    window.addEventListener("load", function(evt) {
+        var widgetAPI = new Common.API.Widget();
+        widgetAPI.sendReadyEvent();
+    });
+}
 
 // Connect SDK JavaScript Bridge API Declarations
 var connectsdk = (function () {
