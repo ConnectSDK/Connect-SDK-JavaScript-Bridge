@@ -470,7 +470,12 @@ var connectsdk = (function () {
             switch (commandType) {
             case "close":
                 // this is a hack to circumvent the fact that window.close() doesn't work with the webOS app type
-                window.open(window.location, '_self').close();
+                var newWindow = window.open(window.location, '_self');
+
+                if (newWindow != null)
+                    newWindow.close();
+                else
+                    window.close();
                 break;
             }
         }
