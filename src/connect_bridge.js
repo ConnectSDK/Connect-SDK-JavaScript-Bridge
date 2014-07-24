@@ -728,6 +728,25 @@ var connectsdk = (function () {
                 if (messageString)
                     this.channel.broadcast(messageString);
             }
+        },
+
+        handleServiceCommand: function (msgData) {
+            var serviceCommand = msgData.message.serviceCommand;
+            if (!serviceCommand) {
+                return;
+            }
+
+            var commandType = serviceCommand.type;
+            console.log('processing serviceCommand ' + JSON.stringify(serviceCommand) + ' of type ' + commandType);
+
+            var widgetAPI = null;
+
+            switch (commandType) {
+            case "close":
+                widgetAPI = new Common.API.Widget();
+                widgetAPI.sendExitEvent();
+                break;
+            }
         }
     }, BaseMediaPlayer);
 
