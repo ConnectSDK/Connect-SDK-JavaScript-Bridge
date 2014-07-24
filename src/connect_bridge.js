@@ -654,6 +654,8 @@ var connectsdk = (function () {
                 this._setCastElement(element);
             };
 
+            this.on(ConnectManager.EventType.STATUS, this.handleMediaStatusUpdate.bind(this));
+
             window.onPause = this._handleWindowPause.bind(this);
             window.onResume = this._handleWindowResume.bind(this);
         },
