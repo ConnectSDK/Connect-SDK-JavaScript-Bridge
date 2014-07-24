@@ -118,6 +118,7 @@ var connectsdk = (function () {
             loadstart: "buffering",
             playing: "playing",
             waiting: "buffering",
+            abort: "finished",
             ended: "finished",
             play: "playing",
             pause: "paused"
