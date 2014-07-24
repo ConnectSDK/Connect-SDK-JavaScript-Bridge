@@ -1018,7 +1018,7 @@ var connectsdk = (function () {
 
     function extend(a, b) {
         for (var key in b) {
-            if (b.hasOwnProperty(key)) {
+            if (b.hasOwnProperty(key) && !a.hasOwnProperty(key)) {
                 a[key] = b[key]
             }
         }
