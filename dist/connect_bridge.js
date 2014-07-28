@@ -1,6 +1,6 @@
 //
 //  Connect SDK JavaScript Bridge
-//  Version 1.3.0 Date: 11 Jun 2014 2:22 PM
+//  Version 1.3.1 Date: 11 Jun 2014 2:22 PM
 //
 //  Created by Jeremy White on 4/16/14.
 //  Copyright (c) 2014 LG Electronics.
