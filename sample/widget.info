@@ -1,0 +1,14 @@
+# Set Application Postion, Size on screen
+Application Position = 0,0
+Application Size = 1280x720
+
+Key Map
+	KEY_B : DEBUG_MEMORYINFO
+#	KEY_D : DEBUG_OUTLINE
+#	KEY_SUBTITLE : DEBUG_DOMTREE
+
+# Screen Setting
+Screen Number = 1
+Screen Resolution = 1280x720
+
+Use Alpha Blending? = Yes

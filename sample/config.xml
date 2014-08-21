@@ -1,0 +1,41 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<widget>
+	<ThumbIcon>thumb.png</ThumbIcon>
+	<BigThumbIcon>thumb.png</BigThumbIcon>
+	<ListIcon>thumb.png</ListIcon>
+    <BigListIcon>thumbs.png</BigListIcon>
+
+	<category>lifestyle</category>
+	<autoUpdate>y</autoUpdate>
+	<cpname>LG</cpname>
+	<cpauthjs></cpauthjs>
+	<login>n</login>
+	<mouse>y</mouse>
+
+	<multiapp>y</multiapp>
+
+	<ver>1.003</ver>
+	<mgrver>2.000</mgrver>
+	<network>y</network>
+	<fullwidget>y</fullwidget>
+	<srcctl>n</srcctl>
+	<ticker>n</ticker>
+	<childlock>n</childlock>
+	<audiomute>n</audiomute>
+	<videomute>n</videomute>
+	<dcont>y</dcont>
+	<movie>n</movie>
+	<runTitle>ConnectSDKSampler</runTitle>
+	<widgetname>Connect SDK Sampler</widgetname>
+	<description>Connect SDK Sampler</description>
+
+    <width>1280</width>
+	<height>720</height>
+
+	<author>
+		<name>LG Electronics.</name>
+		<email>support@connectsdk.com</email>
+		<link>http://www.connectsdk.com/</link>
+		<organization>LG Electronics</organization>
+	</author>
+</widget>
