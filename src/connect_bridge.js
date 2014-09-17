@@ -105,7 +105,9 @@ var connectsdk = (function () {
                 PLAY: "play",
                 READY: "ready",
                 STOP: "stop",
-                STATUS: "mediaStatusUpdate"
+                STATUS: "mediaStatusUpdate",
+                JOIN: "join",
+                DEPART: "depart"
             }
         },
 
@@ -172,6 +174,14 @@ var connectsdk = (function () {
 
         handleReady: function (evt) {
             this.emit(ConnectManager.EventType.READY);
+        },
+
+        handleJoin: function (client) {
+            this.emit(ConnectManager.EventType.JOIN, client);
+        },
+
+        handleDepart: function (client) {
+            this.emit(ConnectManager.EventType.DEPART, client);
         },
 
         _detectPlatform: function() {

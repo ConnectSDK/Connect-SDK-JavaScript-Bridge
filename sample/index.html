@@ -86,6 +86,14 @@
 						window.connectManager.sendMessage(from, "I got your message :-)");
 				});
 
+				window.connectManager.on('join', function(client) {
+					console.log('client joined with id ' + client.id);
+				});
+
+				window.connectManager.on('depart', function(client) {
+					console.log('client departed with id ' + client.id);
+				});
+
 				var cleanupVideo = function() {
 					if (mediaElement.playbackRate != 0)
 						mediaElement.pause();
