@@ -502,6 +502,8 @@ var connectsdk = (function () {
             this.webOSAppChannels = new WebOSAppChannels();
             this.webOSAppChannels.on('message', this.handleMessage.bind(this));
             this.webOSAppChannels.on('ready', this.handleReady.bind(this));
+            this.webOSAppChannels.on('join', this.handleJoin.bind(this));
+            this.webOSAppChannels.on('depart', this.handleDepart.bind(this));
             this.webOSAppChannels.start();
         },
 
@@ -1013,21 +1015,23 @@ var connectsdk = (function () {
         },
 
         _handleP2PJoin: function (message) {
-            var payload = message.payload;
-            if (!payload) {
+            var client = message.client;
+            if (!client) {
                 return;
             }
 
-            this.emit("join", {client: payload.client});
+            console.log('processing client join ' + JSON.stringify(client));
+            this.emit(ConnectManager.EventType.JOIN, client);
         },
 
         _handleP2PDepart: function (message) {
-            var payload = message.payload;
-            if (!payload) {
+            var clientId = message.from;
+            if (!clientId) {
                 return;
             }
 
-            this.emit("depart", {client: payload.client});
+            console.log('processing client departure ' + clientId);
+            this.emit(ConnectManager.EventType.DEPART, { id: clientId });
         }
     });
 
