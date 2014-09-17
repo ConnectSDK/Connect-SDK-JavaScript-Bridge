@@ -710,7 +710,10 @@ var connectsdk = (function () {
 
         _handleConnect: function(channel) {
             this.channel = channel;
+
             this.channel.on("message", this._handleMessage.bind(this));
+            this.channel.on("clientConnect", this._handleClientConnect.bind(this));
+            this.channel.on("clientDisconnect", this._handleClientDisconnect.bind(this));
         },
 
         _handleWindowPause: function(event) {
@@ -721,6 +724,14 @@ var connectsdk = (function () {
 
         _handleWindowResume: function(event) {
             this._handleDeviceRetrieved(this.localDevice);
+        },
+
+        _handleClientConnect: function(channelClient) {
+            this.emit(ConnectManager.EventType.JOIN, channelClient);
+        },
+
+        _handleClientDisconnect: function(channelClient) {
+            this.emit(ConnectManager.EventType.DEPART, channelClient);
         },
 
         _handleMessage: function(rawMessage, client) {
