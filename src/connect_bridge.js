@@ -590,12 +590,19 @@ var connectsdk = (function () {
 
             this._setCastElement(this.mediaElement);
             window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
-            window.castReceiverManager.addEventListener("ready", this.handleReady.bind(this));
+            window.castReceiverManager.addEventListener("ready", this._handleReady.bind(this));
 
             window.castMessageBus = window.castReceiverManager.getCastMessageBus("urn:x-cast:com.connectsdk");
             window.castMessageBus.addEventListener("message", this.handleMessage.bind(this));
 
             window.castReceiverManager.start();
+        },
+
+        _handleReady: function(evt) {
+            window.castReceiverManager.addEventListener(cast.receiver.CastReceiverManager.EventType.SENDER_CONNECTED, this.handleSenderConnected.bind(this));
+            window.castReceiverManager.addEventListener(cast.receiver.CastReceiverManager.EventType.SENDER_DISCONNECTED, this.handleSenderDisconnected.bind(this));
+
+            this.handleReady(evt);
         },
 
         _setCastElement: function (element) {
@@ -646,6 +653,24 @@ var connectsdk = (function () {
                 if (messageString)
                     window.castMessageBus.broadcast(messageString);
             }
+        },
+
+        handleSenderConnected: function(sender) {
+            if (sender == null || sender.senderId == null)
+                return;
+
+            sender.id = sender.senderId;
+
+            this.emit(ConnectManager.EventType.JOIN, sender);
+        },
+
+        handleSenderDisconnected: function(sender) {
+            if (sender == null || sender.senderId == null)
+                return;
+
+            sender.id = sender.senderId;
+
+            this.emit(ConnectManager.EventType.DEPART, sender);
         }
     },
 
