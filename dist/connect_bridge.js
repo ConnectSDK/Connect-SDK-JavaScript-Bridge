@@ -124,7 +124,9 @@ var connectsdk = (function () {
                 PLAY: "play",
                 READY: "ready",
                 STOP: "stop",
-                STATUS: "mediaStatusUpdate"
+                STATUS: "mediaStatusUpdate",
+                JOIN: "join",
+                DEPART: "depart"
             }
         },
 
@@ -191,6 +193,14 @@ var connectsdk = (function () {
 
         handleReady: function (evt) {
             this.emit(ConnectManager.EventType.READY);
+        },
+
+        handleJoin: function (client) {
+            this.emit(ConnectManager.EventType.JOIN, client);
+        },
+
+        handleDepart: function (client) {
+            this.emit(ConnectManager.EventType.DEPART, client);
         },
 
         _detectPlatform: function() {
@@ -511,6 +521,8 @@ var connectsdk = (function () {
             this.webOSAppChannels = new WebOSAppChannels();
             this.webOSAppChannels.on('message', this.handleMessage.bind(this));
             this.webOSAppChannels.on('ready', this.handleReady.bind(this));
+            this.webOSAppChannels.on('join', this.handleJoin.bind(this));
+            this.webOSAppChannels.on('depart', this.handleDepart.bind(this));
             this.webOSAppChannels.start();
         },
 
@@ -599,12 +611,19 @@ var connectsdk = (function () {
 
             this._setCastElement(this.mediaElement);
             window.castReceiverManager = cast.receiver.CastReceiverManager.getInstance();
-            window.castReceiverManager.addEventListener("ready", this.handleReady.bind(this));
+            window.castReceiverManager.addEventListener("ready", this._handleReady.bind(this));
 
             window.castMessageBus = window.castReceiverManager.getCastMessageBus("urn:x-cast:com.connectsdk");
             window.castMessageBus.addEventListener("message", this.handleMessage.bind(this));
 
             window.castReceiverManager.start();
+        },
+
+        _handleReady: function(evt) {
+            window.castReceiverManager.addEventListener(cast.receiver.CastReceiverManager.EventType.SENDER_CONNECTED, this.handleSenderConnected.bind(this));
+            window.castReceiverManager.addEventListener(cast.receiver.CastReceiverManager.EventType.SENDER_DISCONNECTED, this.handleSenderDisconnected.bind(this));
+
+            this.handleReady(evt);
         },
 
         _setCastElement: function (element) {
@@ -655,6 +674,24 @@ var connectsdk = (function () {
                 if (messageString)
                     window.castMessageBus.broadcast(messageString);
             }
+        },
+
+        handleSenderConnected: function(sender) {
+            if (sender == null || sender.senderId == null)
+                return;
+
+            sender.id = sender.senderId;
+
+            this.emit(ConnectManager.EventType.JOIN, sender);
+        },
+
+        handleSenderDisconnected: function(sender) {
+            if (sender == null || sender.senderId == null)
+                return;
+
+            sender.id = sender.senderId;
+
+            this.emit(ConnectManager.EventType.DEPART, sender);
         }
     },
 
@@ -692,7 +729,10 @@ var connectsdk = (function () {
 
         _handleConnect: function(channel) {
             this.channel = channel;
+
             this.channel.on("message", this._handleMessage.bind(this));
+            this.channel.on("clientConnect", this._handleClientConnect.bind(this));
+            this.channel.on("clientDisconnect", this._handleClientDisconnect.bind(this));
         },
 
         _handleWindowPause: function(event) {
@@ -703,6 +743,14 @@ var connectsdk = (function () {
 
         _handleWindowResume: function(event) {
             this._handleDeviceRetrieved(this.localDevice);
+        },
+
+        _handleClientConnect: function(channelClient) {
+            this.emit(ConnectManager.EventType.JOIN, channelClient);
+        },
+
+        _handleClientDisconnect: function(channelClient) {
+            this.emit(ConnectManager.EventType.DEPART, channelClient);
         },
 
         _handleMessage: function(rawMessage, client) {
@@ -997,21 +1045,23 @@ var connectsdk = (function () {
         },
 
         _handleP2PJoin: function (message) {
-            var payload = message.payload;
-            if (!payload) {
+            var client = message.client;
+            if (!client) {
                 return;
             }
 
-            this.emit("join", {client: payload.client});
+            console.log('processing client join ' + JSON.stringify(client));
+            this.emit(ConnectManager.EventType.JOIN, client);
         },
 
         _handleP2PDepart: function (message) {
-            var payload = message.payload;
-            if (!payload) {
+            var clientId = message.from;
+            if (!clientId) {
                 return;
             }
 
-            this.emit("depart", {client: payload.client});
+            console.log('processing client departure ' + clientId);
+            this.emit(ConnectManager.EventType.DEPART, { id: clientId });
         }
     });
 
