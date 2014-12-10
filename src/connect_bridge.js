@@ -174,7 +174,7 @@ var connectsdk = (function () {
             var userAgent = navigator.userAgent.toLowerCase();
             this.platformType = ConnectManager.PlatformType.DEFAULT;
 
-            if (userAgent.indexOf('iphone os') >= 0)
+            if (/(iPad|iPhone|iPod)/g.test(navigator.userAgent))
                 this.platformType = ConnectManager.PlatformType.AIRPLAY;
             else if (userAgent.indexOf('crkey') > 0 && cast != null)
                 this.platformType = ConnectManager.PlatformType.GOOGLE_CAST;
